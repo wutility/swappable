@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <title>Swappable Demo</title>
     <link rel="stylesheet" href="../dist/swappable.css">
-    <meta name="description" content="Lightweight, high-performance drag and drop grid library with smooth animations and touch support. Create interactive, swappable grids with minimal overhead and maximum responsiveness.">
+    <meta name="description"
+        content="Lightweight, high-performance drag and drop grid library with smooth animations and touch support. Create interactive, swappable grids with minimal overhead and maximum responsiveness.">
     <style>
         body {
             font-family: sans-serif;
@@ -19,7 +20,6 @@
         .grid-item img {
             max-width: 100%;
             display: block;
-            margin: 5px auto 0;
         }
     </style>
 </head>
@@ -28,6 +28,8 @@
     <div id="controls">
         <button id="add-item-btn">Add Item</button>
         <button id="remove-item-btn">Remove Item #1</button>
+        <button id="swap-item-btn">Swap Item #1 with #2</button>
+        <button id="destroy-item-btn">Destroy</button>
     </div>
 
     <div id="my-grid"></div>
@@ -41,7 +43,7 @@
             { id: 3, content: 'Item 3' },
             { id: 4, content: 'Item 4' },
             { id: 5, content: 'Item 5' },
-            { id: 6, content: 'Item 6' },
+            { id: 666, content: 'Item 666' },
         ];
 
         const grid = new Swappable('#my-grid', {
@@ -71,8 +73,15 @@
         });
 
         document.getElementById('remove-item-btn').addEventListener('click', () => {
-            //grid.remove(1);
-            grid.move(1, 2);
+            grid.remove(1);
+        });
+
+        document.getElementById('swap-item-btn').addEventListener('click', () => {
+            grid.swap(1, 666);
+        });
+
+        document.getElementById('destroy-item-btn').addEventListener('click', () => {
+            grid.destroy();
         });
     </script>
 

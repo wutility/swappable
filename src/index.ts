@@ -16,8 +16,8 @@ interface ClassNames {
 }
 
 interface GridOptions {
-  data?: { id: number; content?: string; [key: string]: any }[];
-  renderItem?: (item: { id: number; content?: string; [key: string]: any }) => string;
+  data?: { id: number; content?: string;[key: string]: any }[];
+  renderItem?: (item: { id: number; content?: string;[key: string]: any }) => string;
   dragEnabled?: boolean;
   dragHandle?: string | null;
   classNames?: ClassNames;
@@ -32,7 +32,7 @@ interface GridEvents {
   remove?: (data: { items: HTMLElement[] }) => void;
   dragStart?: (data: { item: HTMLElement; event: MouseEvent | TouchEvent }) => void;
   dragMove?: (data: { item: HTMLElement; event: MouseEvent | TouchEvent }) => void;
-  move?: (data: { fromId: number; toId: number; item: HTMLElement }) => void;
+  swap?: (data: { fromId: number; toId: number; item: HTMLElement }) => void;
   sort?: (data: { fromId: number; toId: number; items: GridItemData[] }) => void;
   dragEnd?: (data: { item: HTMLElement; event: MouseEvent | TouchEvent }) => void;
   layoutStart?: () => void;
@@ -99,7 +99,7 @@ export default class Swappable {
     this.itemsData = [];
     this.itemsMap.clear();
     this.indexMap.clear();
-    const addItem = (itemData: { id: number; content?: string; [k: string]: any }, index: number) => {
+    const addItem = (itemData: { id: number; content?: string;[k: string]: any }, index: number) => {
       const el = this._createItemElement(itemData);
       const dataObj: GridItemData = { id: itemData.id, element: el, ...itemData };
       this.itemsData.push(dataObj);
@@ -143,7 +143,7 @@ export default class Swappable {
   /* --------------------------
      Public API
      -------------------------- */
-  public add(item: { id: number; content?: string; [k: string]: any }, { index = -1 } = {}): void {
+  public add(item: { id: number; content?: string;[k: string]: any }, { index = -1 } = {}): void {
     if (typeof item.id !== "number" || this.itemsMap.has(item.id)) return;
     const el = this._createItemElement(item);
     const dataObj: GridItemData = { id: item.id, element: el, ...item };
@@ -178,15 +178,15 @@ export default class Swappable {
     this._triggerEvent("remove", { items: [removed.element] });
   }
 
-  public move(fromId: number, toId: number): void {
+  public swap(fromId: number, toId: number): void {
     const fromIndex = this.indexMap.get(fromId);
     const toIndex = this.indexMap.get(toId);
     if (fromIndex == null || toIndex == null || fromId === toId) return;
 
     [this.itemsData[fromIndex], this.itemsData[toIndex]] = [this.itemsData[toIndex], this.itemsData[fromIndex]];
     this._updateIndexMap();
-    this.layout(this.options.swapDuration); // Use the new swapDuration
-    this._triggerEvent("move", { fromId, toId, item: this.itemsMap.get(fromId)!.element });
+    this.layout(this.options.swapDuration);
+    this._triggerEvent("swap", { fromId, toId, item: this.itemsMap.get(fromId)!.element });
   }
 
   /* --------------------------
@@ -209,7 +209,7 @@ export default class Swappable {
       allItems.forEach(el => {
         el.style.willChange = "transform";
       });
-      
+
       allItems.forEach(el => {
         const key = el.dataset.id!;
         const first = firstRects.get(key);
@@ -227,7 +227,7 @@ export default class Swappable {
           });
         }
       });
-      
+
       setTimeout(() => {
         allItems.forEach(el => {
           el.style.willChange = "initial";
@@ -250,7 +250,7 @@ export default class Swappable {
 
   private _animateIn(el: HTMLElement): void {
     el.classList.add(this.options.classNames.entering);
-    el.getBoundingClientRect(); 
+    el.getBoundingClientRect();
     requestAnimationFrame(() => {
       el.classList.remove(this.options.classNames.entering);
       this.layout();
@@ -282,7 +282,7 @@ export default class Swappable {
     this._onDragStartHandler = this._handleDragStart.bind(this);
     this._onDragMoveHandler = this._handleDragMove.bind(this);
     this._onDragEndHandler = this._handleDragEnd.bind(this);
-    
+
     this.container.addEventListener("mousedown", this._onDragStartHandler);
     this.container.addEventListener("touchstart", this._onDragStartHandler, { passive: false });
   }
@@ -290,7 +290,7 @@ export default class Swappable {
   private _handleDragStart(e: MouseEvent | TouchEvent): void {
     if (e instanceof MouseEvent && e.button !== 0) return;
     if (!this.options.dragEnabled) return;
-    
+
     const target = e.target as HTMLElement;
     const handle = this.options.dragHandle ? target.closest(this.options.dragHandle) : target;
     if (!handle) return;
@@ -302,14 +302,14 @@ export default class Swappable {
       this.isDragging = true;
       this.draggedItem = clickedItem;
       this.draggedItem.style.willChange = "transform";
-      
+
       this._createGhost(e);
-      
+
       document.addEventListener("mousemove", this._onDragMoveHandler);
       document.addEventListener("touchmove", this._onDragMoveHandler, { passive: false });
       document.addEventListener("mouseup", this._onDragEndHandler);
       document.addEventListener("touchend", this._onDragEndHandler);
-      
+
       this._triggerEvent("dragStart", { item: this.draggedItem, event: e });
     }
   }
@@ -317,7 +317,7 @@ export default class Swappable {
   private _handleDragMove(e: MouseEvent | TouchEvent): void {
     if (!this.isDragging || !this.draggedItem) return;
     if (e instanceof TouchEvent) {
-        e.preventDefault();
+      e.preventDefault();
     }
     this._moveGhost(e);
     this._findAndHighlightTarget(e);
@@ -365,7 +365,7 @@ export default class Swappable {
 
     const offsetX = (this.ghostElement as any).offsetX;
     const offsetY = (this.ghostElement as any).offsetY;
-    
+
     this.ghostElement.style.left = `${coords.clientX - offsetX}px`;
     this.ghostElement.style.top = `${coords.clientY - offsetY}px`;
   }
@@ -399,8 +399,8 @@ export default class Swappable {
     const toId = Number(toEl.dataset.id);
 
     if (!Number.isFinite(fromId) || !Number.isFinite(toId)) return;
-    
-    this.move(fromId, toId);
+
+    this.swap(fromId, toId);
     this._triggerEvent("sort", { fromId, toId, items: this.itemsData });
   }
 
@@ -452,9 +452,9 @@ export default class Swappable {
   public destroy(): void {
     this.container.removeEventListener("mousedown", this._onDragStartHandler);
     this.container.removeEventListener("touchstart", this._onDragStartHandler);
-    
+
     this._cleanupDragState();
-    
+
     this.container.innerHTML = "";
     this.itemsData = [];
     this.itemsMap.clear();
