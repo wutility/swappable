@@ -1,0 +1,44 @@
+{
+  "name": "swappable",
+  "description": "Lightweight, high-performance drag and drop grid library with smooth animations and touch support. Create interactive, swappable grids with minimal overhead and maximum responsiveness.",
+  "version": "1.0.4",
+  "type": "module",
+  "main": "./dist/index.umd.js",
+  "module": "./dist/index.es.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.umd.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vite": "^7.1.0",
+    "vite-plugin-dts": "^4.5.4"
+  },
+  "keywords": [
+    "dnd",
+    "drag and drop",
+    "grid dnd",
+    "swappable"
+  ],
+  "author": "Haikel Fazzani",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wutility/swappable/swappable"
+  },
+  "bugs": {
+    "url": "https://github.com/wutility/swappable/swappable/issues"
+  },
+  "homepage": "https://github.com/wutility/swappable/swappable#readme"
+}

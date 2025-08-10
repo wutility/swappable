@@ -1,0 +1,88 @@
+/* SwappableGrid.css
+  Contains all the necessary styles for the grid component.
+*/
+
+/* 1. Main container for the grid */
+.swappable-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--items-per-row, 4), 1fr);
+  gap: 1rem;
+  position: relative;
+}
+
+/* 2. Base styles for each grid item */
+.grid-item {
+  /*
+    Core transition for all animations (layout, add, remove).
+    This is more efficient than setting transitions in JavaScript.
+  */
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  will-change: transform, opacity; /* Hint to the browser for optimization */
+  touch-action: none; /* Prevents scrolling on touch devices when dragging */
+  position: relative;
+  background-color: #fff;
+  border-radius: .5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* 3. Animation states for adding and removing items */
+
+/*
+  The state an item is in just before it animates into view.
+  It's scaled down and transparent.
+*/
+.item-entering {
+  transform: scale(0.5);
+  opacity: 0;
+}
+
+/*
+  The state for an item as it animates out of view.
+  It scales down and fades out.
+*/
+.item-exiting {
+  transform: scale(0.5);
+  opacity: 0;
+  /* Ensure it's above other items during its exit animation */
+  z-index: 10; 
+}
+
+
+/* 4. Drag and drop states */
+
+/*
+  The "ghost" element that follows the cursor during a drag.
+  Styling this with a class is much cleaner than using inline styles.
+*/
+.ghost {
+  position: fixed;
+  pointer-events: none; /* Allows mouse events to pass through to elements below */
+  z-index: 1000;
+  opacity: 0.5;
+  margin: 0;
+  transition: opacity 0.2s ease;
+  will-change: top, left; /* We are animating these properties */
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/*
+  Applied to the original item being dragged.
+  Reducing its opacity provides clear visual feedback.
+*/
+.grid-item.dragging {
+  opacity: 1;
+  cursor: grabbing;
+}
+
+
+.grid-item.placeholder {
+  background-color: #e0f7fa;  
+  opacity: .8;
+}
+
+/* 5. Optional: Example content styles */
+.grid-item-content {
+  padding: 1.5rem;
+  text-align: center;
+}
