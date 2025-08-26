@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Swappable Demo</title>
+    
+    <meta name="description"
+        content="Lightweight, high-performance drag and drop grid library with smooth animations and touch support. Create interactive, swappable grids with minimal overhead and maximum responsiveness.">
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+        }
+
+        #controls {
+            margin-bottom: 10px;
+        }
+
+        #my-grid {
+            gap: 1rem;
+        }
+
+        .grid-item {
+            border: 1px solid #000;
+            padding: 1rem;
+            height: 200px;
+        }
+
+        .grid-item img {
+            max-width: 100%;
+            display: block;
+        }
+
+        .placeholder,
+        .ghost {
+            background-color: #fff;
+            cursor: grab;
+        }
+
+        .placeholder {outline: 4px solid rgb(55, 55, 255);}
+
+        /* .grid-item.animating {background-color: #000;} */
+    </style>
+</head>
+
+<body>
+    <div id="controls">
+        <button id="add-item-btn">Add Item</button>
+        <button id="remove-item-btn">Remove Item #1</button>
+        <button id="swap-item-btn">Swap Item #1 with #2</button>
+        <button id="enable-item-btn">enable</button>
+        <button id="disable-item-btn">disable</button>
+    </div>
+
+    <div>1Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's
+        standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make
+        a type specimen book.</div>
+
+    <div id="my-grid">
+        <div class="grid-item">
+            <img width="50" height="50" src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
+            1Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum
+            has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of
+            type and scrambled it to make a type specimen book.</div>
+        <div class="grid-item">
+            <img width="50" height="50" src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
+            2It has survived not only five centuries, but also the leap into electronic typesetting,
+            remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets
+            containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker
+            including versions of Lorem Ipsum.</div>
+        <div class="grid-item">
+            <img width="50" height="50" src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
+            3It is a long established fact that a reader will be distracted by the readable content
+            of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal
+            distribution</div>
+    </div>
+
+    <script src="index.umd.js"></script>
+
+    <script>
+        const grid = new Swappable('#my-grid', {
+            itemsPerRow: 4,
+            swapDuration: 300
+        });
+
+        // Control buttons
+        const addItemBtn = document.getElementById('add-item-btn');
+        addItemBtn.addEventListener('click', () => {
+            const div = document.createElement('div');
+            div.classList.add('grid-item')
+            div.innerHTML = `default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).`
+            grid.add(div);
+            grid.refresh();
+        });
+
+        document.getElementById('remove-item-btn').addEventListener('click', () => {
+            grid.remove(1);
+        });
+
+        document.getElementById('swap-item-btn').addEventListener('click', () => {
+            grid.swap(1, 2);
+        });
+
+        document.getElementById('disable-item-btn').addEventListener('click', () => {
+            grid.disable();
+        });
+
+        document.getElementById('enable-item-btn').addEventListener('click', () => {
+            grid.enable();
+        });
+    </script>
+
+</body>
+
+</html>

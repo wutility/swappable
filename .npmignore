@@ -7,11 +7,11 @@ tests/
 docs/
 testr/
 
-dist/index.html
 index.html
-index.js
-app.js
-style.css
+test.js
+test.ts
+*.html
+*.css
 
 yarn.lock
 package-lock.json
@@ -23,5 +23,5 @@ package-lock.json
 
 rollup.config.js
 bs-config.js
-
-*.html
+vite.config.ts
+tsconfig.json

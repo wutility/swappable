@@ -1,25 +1,22 @@
-// vite.config.ts
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
+import path from 'node:path';
 
 export default defineConfig({
-  root: '.',
-  build: {
-    lib: {
-      entry: 'src/index.ts',
-      name: 'Swappable',
-      fileName: (format) => `index.${format}.js`,
-      formats: ['es', 'umd'],
-    },
-    rollupOptions: {
-      input: 'src/index.ts',
-      external: [],
-    },
-  },
   plugins: [
     dts({
+      compilerOptions: { removeComments: true },
       insertTypesEntry: true,
-      include: ['src/**/*.ts'],
+      tsconfigPath: './tsconfig.build.json'
     }),
   ],
+  build: {
+    lib: {
+      entry: path.resolve(__dirname, 'src/index.ts'),
+      name: 'Swappable',
+      fileName: (format) => format === 'es' ? 'index.js' : `index.${format}.js`,
+      formats: ['es', 'umd'],
+    },
+    sourcemap: false,
+  }
 });

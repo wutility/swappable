@@ -1,3 +1,5 @@
+public/
+
 # Logs
 logs
 *.log
@@ -8,8 +10,10 @@ pnpm-debug.log*
 lerna-debug.log*
 package-lock.json
 
+test.js
+test.ts
+
 node_modules
-build
 dist
 dist-ssr
 *.local
