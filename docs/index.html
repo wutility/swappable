@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Swappable Demo</title>
-    
+
     <meta name="description"
         content="Lightweight, high-performance drag and drop grid library with smooth animations and touch support. Create interactive, swappable grids with minimal overhead and maximum responsiveness.">
     <style>
@@ -38,10 +38,15 @@
             cursor: grab;
         }
 
-        .placeholder {outline: 4px solid rgb(55, 55, 255);}
+        .placeholder {
+            outline: 4px solid rgb(55, 55, 255);
+        }
 
         /* .grid-item.animating {background-color: #000;} */
     </style>
+
+    <link rel="stylesheet" href="swappable.css">
+    <script src="index.umd.js"></script>
 </head>
 
 <body>
@@ -59,24 +64,28 @@
 
     <div id="my-grid">
         <div class="grid-item">
-            <img width="50" height="50" src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
+            <img width="50" height="50"
+                src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
             1Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum
             has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of
-            type and scrambled it to make a type specimen book.</div>
+            type and scrambled it to make a type specimen book.
+        </div>
         <div class="grid-item">
-            <img width="50" height="50" src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
+            <img width="50" height="50"
+                src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
             2It has survived not only five centuries, but also the leap into electronic typesetting,
             remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets
             containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker
-            including versions of Lorem Ipsum.</div>
+            including versions of Lorem Ipsum.
+        </div>
         <div class="grid-item">
-            <img width="50" height="50" src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
+            <img width="50" height="50"
+                src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
             3It is a long established fact that a reader will be distracted by the readable content
             of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal
-            distribution</div>
+            distribution
+        </div>
     </div>
-
-    <script src="index.umd.js"></script>
 
     <script>
         const grid = new Swappable('#my-grid', {

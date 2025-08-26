@@ -11,7 +11,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "vite build && cp dist/index.umd.js docs/",
+    "cp": "cp dist/index.umd.js docs/ && cp dist/swappable.css docs/",
+    "build": "vite build && npm run cp",
     "dev": "vite",
     "preview": "vite preview",
     "clean": "rm -rf dist",
