@@ -1,7 +1,7 @@
 {
   "name": "swappable",
   "description": "Lightweight, high-performance drag and drop grid library with smooth animations and touch support. Create interactive, swappable grids with minimal overhead and maximum responsiveness.",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -13,7 +13,7 @@
   "scripts": {
     "cp": "cp dist/index.umd.js docs/ && cp dist/swappable.css docs/",
     "build": "vite build && npm run cp",
-    "dev": "vite",
+    "dev": "vite build --minify false && npm run cp",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build"

@@ -1,7 +1,7 @@
 export interface SwappableItemData {
   index: number;
   element: HTMLElement;
-  [key: string]: any; // allows extra metadata if needed
+  [key: string]: any;
 }
 
 export interface ClassNames {
@@ -20,6 +20,7 @@ export interface SwappableOptions {
   swapDuration?: number;
   layoutEasing?: string;
   itemsPerRow?: number;
+  longPressDelay?: number;
 }
 
 export interface SwappableEvents {

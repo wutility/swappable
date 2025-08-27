@@ -1,0 +1,38 @@
+body {
+  font-family: sans-serif;
+  margin: 20px;
+}
+
+#controls {
+  margin-bottom: 10px;
+}
+
+#my-grid {
+  gap: 1rem;
+}
+
+.grid-item {
+  background-color: #fff;
+  border: 1px solid #000;
+  padding: 1rem;
+  height: 200px;
+}
+
+.grid-item img {
+  max-width: 100%;
+  display: block;
+}
+
+.placeholder,
+.ghost {
+  background-color: #fff;
+  cursor: grab;
+}
+
+.ghost { background-color: goldenrod !important;}
+
+.placeholder {
+  outline: 4px solid rgb(55, 55, 255);
+}
+
+/* .grid-item.animating {background-color: #000;} */

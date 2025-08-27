@@ -1,1 +1,399 @@
-(function(o,h){typeof exports=="object"&&typeof module<"u"?module.exports=h():typeof define=="function"&&define.amd?define(h):(o=typeof globalThis<"u"?globalThis:o||self,o.Swappable=h())})(this,function(){"use strict";class o{container;options;itemsData=[];isDragging=!1;isMoving=!1;draggedItem=null;targetItem=null;ghostElement=null;dragRAF=null;eventListeners={};itemRects=new Map;ghostOffset={x:0,y:0};animatingElements=new Set;layoutAnimationCounter=0;boundHandleDragStart=this._handleDragStart.bind(this);boundThrottledDragMove=this._throttledDragMove.bind(this);boundHandleDragEnd=this._handleDragEnd.bind(this);constructor(t,e={}){if(typeof t=="string")this.container=document.querySelector(t);else if(t instanceof HTMLElement)this.container=t;else throw new Error("Swappable: Invalid container provided. Must be a selector string or an HTMLElement.");if(!this.container)throw new Error("Swappable: Container not found.");const i={dragEnabled:!0,dragHandle:null,layoutDuration:300,swapDuration:300,layoutEasing:"ease",itemsPerRow:4,classNames:{item:"grid-item",drag:"dragging",placeholder:"placeholder",ghost:"ghost",hidden:"hidden"}};this.options={...i,...e},this.options.classNames={...i.classNames,...e.classNames},this._setCSSVar("--items-per-row",String(this.options.itemsPerRow)),this._setCSSVar("--layout-duration",`${this.options.layoutDuration}ms`),this._setCSSVar("--layout-easing",this.options.layoutEasing),this.container.classList.add("swappable-grid"),this._initItems(),this._bindEvents()}_setCSSVar(t,e){this.container.style.setProperty(t,e)}_initItems(){this.itemsData=[],Array.from(this.container.children).forEach((e,i)=>{e.classList.contains(this.options.classNames.item)||e.classList.add(this.options.classNames.item),this.itemsData.push({index:i,element:e})})}_getEventCoords(t){return{clientX:t.clientX,clientY:t.clientY}}_bindEvents(){this.container.addEventListener("pointerdown",this.boundHandleDragStart,{passive:!1})}_handleDragStart(t){if(t.button!==0||!this.options.dragEnabled)return;const e=t.target,i=this.options.dragHandle?e.closest(this.options.dragHandle):e;if(!i)return;const s=`.${this.options.classNames.item}`,a=i.closest(s);a&&(t.preventDefault(),this.isDragging=!0,this.draggedItem=a,this.draggedItem.style.willChange="transform",this.draggedItem.classList.add(this.options.classNames.hidden),this.itemRects.clear(),this.itemsData.forEach(({element:n})=>{n!==this.draggedItem&&this.itemRects.set(n,n.getBoundingClientRect())}),this._createGhost(t),window.addEventListener("pointermove",this.boundThrottledDragMove,{passive:!1}),window.addEventListener("pointerup",this.boundHandleDragEnd),window.addEventListener("pointercancel",this.boundHandleDragEnd),this._triggerEvent("dragStart",{item:this.draggedItem,event:t}))}_throttledDragMove(t){this.isMoving||(this.dragRAF&&cancelAnimationFrame(this.dragRAF),this.dragRAF=requestAnimationFrame(()=>{this._handleDragMove(t),this.isMoving=!1,this.dragRAF=null}),this.isMoving=!0)}_handleDragMove(t){!this.isDragging||!this.draggedItem||(t.preventDefault(),this._moveGhost(t),this._findAndHighlightTarget(t),this._triggerEvent("dragMove",{item:this.draggedItem,event:t}))}_handleDragEnd(t){!this.isDragging||!this.draggedItem||(this.targetItem&&this.targetItem!==this.draggedItem&&this._sortItems(this.draggedItem,this.targetItem),this._finalizeDragEnd(t))}_createGhost(t){if(!this.draggedItem)return;const e=this._getEventCoords(t),i=this.draggedItem.getBoundingClientRect();this.ghostElement=this.draggedItem.cloneNode(!0),this.ghostElement.classList.add(this.options.classNames.drag,this.options.classNames.ghost),this.draggedItem.classList.add(this.options.classNames.drag),this.ghostElement.classList.remove(this.options.classNames.hidden),Object.assign(this.ghostElement.style,{width:`${i.width}px`,height:`${i.height}px`,top:`${i.top}px`,left:`${i.left}px`}),this.ghostOffset={x:e.clientX-i.left,y:e.clientY-i.top},document.body.appendChild(this.ghostElement),this._moveGhost(t)}_moveGhost(t){if(!this.ghostElement)return;const e=this._getEventCoords(t);this.ghostElement.style.left=`${e.clientX-this.ghostOffset.x}px`,this.ghostElement.style.top=`${e.clientY-this.ghostOffset.y}px`}_findAndHighlightTarget(t){this.targetItem&&(this.targetItem.style.willChange="initial",this.targetItem.classList.remove(this.options.classNames.placeholder),this.targetItem=null);const{clientX:e,clientY:i}=this._getEventCoords(t);let s=null;for(const[a,n]of this.itemRects.entries())if(e>=n.left&&e<=n.right&&i>=n.top&&i<=n.bottom){s=a;break}s&&(this.targetItem=s,this.targetItem.style.willChange="transform",this.targetItem.classList.add(this.options.classNames.placeholder))}_sortItems(t,e){const i=this.itemsData.findIndex(a=>a.element===t),s=this.itemsData.findIndex(a=>a.element===e);i===-1||s===-1||i===s||(this.swap(i,s),this._triggerEvent("sort",{fromIndex:i,toIndex:s,items:this.itemsData}))}_finalizeDragEnd(t){const e=this.draggedItem;this.dragRAF&&(cancelAnimationFrame(this.dragRAF),this.dragRAF=null),this._cleanupDragState(),e&&this._triggerEvent("dragEnd",{item:e,event:t})}_cleanupDragState(){this.ghostElement&&this.ghostElement.remove(),this.draggedItem&&(this.draggedItem.style.willChange="initial",this.draggedItem.classList.remove(this.options.classNames.drag),this.draggedItem.classList.remove(this.options.classNames.hidden)),this.targetItem&&(this.targetItem.style.willChange="initial",this.targetItem.classList.remove(this.options.classNames.placeholder)),this.isDragging=!1,this.isMoving=!1,this.draggedItem=null,this.targetItem=null,this.ghostElement=null,this.itemRects.clear(),window.removeEventListener("pointermove",this.boundThrottledDragMove),window.removeEventListener("pointerup",this.boundHandleDragEnd),window.removeEventListener("pointercancel",this.boundHandleDragEnd)}_triggerEvent(t,e){const i=this.eventListeners[t];typeof i=="function"&&i(e)}on(t,e){return typeof e=="function"&&(this.eventListeners[t]=e),this}off(t){return this.eventListeners[t]=void 0,this}layout(t){this._triggerEvent("layoutStart",void 0);const e=typeof t=="number"?t:this.options.layoutDuration;this._setCSSVar("--layout-duration",`${e}ms`);const i=this.itemsData.map(a=>a.element),s=i.map(a=>a.getBoundingClientRect());this.animatingElements.clear(),this.layoutAnimationCounter=0,this.itemsData.forEach((a,n)=>{const r=this.container.children[n];r!==a.element&&this.container.insertBefore(a.element,r||null)}),requestAnimationFrame(()=>{const a=[];if(i.forEach((n,r)=>{n.style.willChange="transform";const l=s[r],d=n.getBoundingClientRect(),g=l.left-d.left,m=l.top-d.top;g||m?(a.push(n),n.classList.remove("animating"),n.style.transform=`translate(${g}px, ${m}px)`):n.style.transform="translate(0, 0)"}),a.length===0){this._triggerEvent("layoutEnd",void 0);return}this.layoutAnimationCounter=a.length,requestAnimationFrame(()=>{a.forEach(n=>{this.animatingElements.add(n),n.classList.add("animating"),n.style.transform="translate(0, 0)";const r=()=>{n.style.willChange="initial",n.classList.remove("animating"),this.animatingElements.delete(n),n.removeEventListener("transitionend",r),this.layoutAnimationCounter--,this.layoutAnimationCounter<=0&&this._triggerEvent("layoutEnd",void 0)};n.addEventListener("transitionend",r,{once:!0})})})})}add(t,e){t.classList.add(this.options.classNames.item);let i;if(e!=null&&e>=0&&e<this.itemsData.length){this.itemsData.splice(e,0,{index:e,element:t}),this.container.insertBefore(t,this.container.children[e]);for(let s=e;s<this.itemsData.length;s++)this.itemsData[s].index=s;i=this.itemsData[e]}else i={index:this.itemsData.length,element:t},this.itemsData.push(i),this.container.appendChild(t);return this._triggerEvent("add",{items:this.itemsData.map(s=>s.element)}),i}remove(t){let e;if(t instanceof HTMLElement?e=this.itemsData.findIndex(s=>s.element===t):e=t,e<0||e>=this.itemsData.length)return null;const[i]=this.itemsData.splice(e,1);i.element.classList.remove("animating"),this.animatingElements.delete(i.element),i.element.remove();for(let s=e;s<this.itemsData.length;s++)this.itemsData[s].index=s;return this._triggerEvent("remove",{items:this.itemsData.map(s=>s.element)}),i}select(t){return typeof t=="number"?this.itemsData[t]||null:this.itemsData.find(i=>i.element===t)||null}swap(t,e){return t<0||t>=this.itemsData.length||e<0||e>=this.itemsData.length||t===e?this:([this.itemsData[t],this.itemsData[e]]=[this.itemsData[e],this.itemsData[t]],this.itemsData[t].index=t,this.itemsData[e].index=e,this.layout(this.options.swapDuration),this._triggerEvent("swap",{fromIndex:t,toIndex:e,item:this.itemsData[e].element}),this)}refresh(){this._initItems(),this.itemsData.forEach((t,e)=>{const i=this.container.children[e];i!==t.element&&this.container.insertBefore(t.element,i||null)}),this.layout(this.options.layoutDuration)}destroy(){this.detach(),this.itemsData.forEach(({element:t})=>{t.classList.remove("animating")}),this.container.innerHTML="",this.itemsData=[],this.eventListeners={},this.animatingElements.clear(),this.layoutAnimationCounter=0}detach(){this.container.removeEventListener("pointerdown",this.boundHandleDragStart),this.dragRAF&&(cancelAnimationFrame(this.dragRAF),this.dragRAF=null),this._cleanupDragState()}enable(){this.options.dragEnabled||(this.options.dragEnabled=!0,this._bindEvents())}disable(){this.options.dragEnabled&&(this.options.dragEnabled=!1,this.detach())}}return o});
+(function(global, factory) {
+  typeof exports === "object" && typeof module !== "undefined" ? module.exports = factory() : typeof define === "function" && define.amd ? define(factory) : (global = typeof globalThis !== "undefined" ? globalThis : global || self, global.Swappable = factory());
+})(this, function() {
+  "use strict";
+  const defaults = {
+    dragEnabled: true,
+    dragHandle: ".grid-item",
+    layoutDuration: 300,
+    swapDuration: 300,
+    layoutEasing: "ease",
+    itemsPerRow: 4,
+    longPressDelay: 100,
+    classNames: {
+      item: "grid-item",
+      drag: "dragging",
+      placeholder: "placeholder",
+      ghost: "ghost",
+      hidden: "hidden"
+    }
+  };
+  class Swappable {
+    container;
+    options;
+    itemsData = [];
+    isPotentialDrag = false;
+    isDragging = false;
+    isMoving = false;
+    startEvent = null;
+    longPressTimeout = null;
+    draggedItem = null;
+    targetItem = null;
+    ghostElement = null;
+    dragRAF = null;
+    eventListeners = {};
+    itemRects = /* @__PURE__ */ new Map();
+    ghostOffset = { x: 0, y: 0 };
+    animatingElements = /* @__PURE__ */ new Set();
+    layoutAnimationCounter = 0;
+    boundHandleDragStart = this._handleDragStart.bind(this);
+    boundThrottledDragMove = this._throttledDragMove.bind(this);
+    boundHandleDragEnd = this._handleDragEnd.bind(this);
+    constructor(containerOrSelector, options = {}) {
+      if (typeof containerOrSelector === "string") {
+        this.container = document.querySelector(containerOrSelector);
+      } else if (containerOrSelector instanceof HTMLElement) {
+        this.container = containerOrSelector;
+      } else {
+        throw new Error("Swappable: Invalid container provided. Must be a selector string or an HTMLElement.");
+      }
+      if (!this.container) {
+        throw new Error("Swappable: Container not found.");
+      }
+      this.options = { ...defaults, ...options };
+      this.options.classNames = { ...defaults.classNames, ...options.classNames };
+      this._setCSSVar("--items-per-row", String(this.options.itemsPerRow));
+      this._setCSSVar("--layout-duration", `${this.options.layoutDuration}ms`);
+      this._setCSSVar("--layout-easing", this.options.layoutEasing);
+      this.container.classList.add("swappable-grid");
+      this._initItems();
+      this._bindEvents();
+    }
+    _setCSSVar(name, value) {
+      this.container.style.setProperty(name, value);
+    }
+    _initItems() {
+      this.itemsData = [];
+      const children = Array.from(this.container.children);
+      children.forEach((el, idx) => {
+        if (!el.classList.contains(this.options.classNames.item)) {
+          el.classList.add(this.options.classNames.item);
+        }
+        this.itemsData.push({ index: idx, element: el });
+      });
+    }
+    _getEventCoords(e) {
+      return { clientX: e.clientX, clientY: e.clientY };
+    }
+    _bindEvents() {
+      this.container.addEventListener("pointerdown", this.boundHandleDragStart, { passive: true });
+    }
+    _handleDragStart(e) {
+      if (e.button !== 0 || !this.options.dragEnabled || this.isDragging) return;
+      const target = e.target;
+      const handle = this.options.dragHandle ? target.closest(this.options.dragHandle) : target;
+      if (!handle) return;
+      const itemSelector = `.${this.options.classNames.item}`;
+      const clickedItem = handle.closest(itemSelector);
+      if (clickedItem) {
+        this.isPotentialDrag = true;
+        this.startEvent = e;
+        this.draggedItem = clickedItem;
+        this.longPressTimeout = window.setTimeout(() => {
+          if (this.isPotentialDrag) {
+            this._initializeDrag(this.startEvent);
+          }
+          this.longPressTimeout = null;
+        }, this.options.longPressDelay);
+        window.addEventListener("pointermove", this.boundThrottledDragMove, { passive: false });
+        window.addEventListener("pointerup", this.boundHandleDragEnd, { once: true });
+        window.addEventListener("pointercancel", this.boundHandleDragEnd, { once: true });
+      }
+    }
+    _initializeDrag(e) {
+      if (!this.draggedItem) return;
+      this.isDragging = true;
+      this.isPotentialDrag = false;
+      this.draggedItem.style.willChange = "transform";
+      this.draggedItem.classList.add(this.options.classNames.hidden);
+      this.itemRects.clear();
+      this.itemsData.forEach(({ element }) => {
+        if (element !== this.draggedItem) {
+          this.itemRects.set(element, element.getBoundingClientRect());
+        }
+      });
+      this._createGhost(e);
+      this._triggerEvent("dragStart", { item: this.draggedItem, event: e });
+    }
+    _throttledDragMove(e) {
+      if (this.isDragging) {
+        e.preventDefault();
+      }
+      if (!this.isMoving) {
+        if (this.dragRAF) cancelAnimationFrame(this.dragRAF);
+        this.dragRAF = requestAnimationFrame(() => {
+          this._handleDragMove(e);
+          this.isMoving = false;
+          this.dragRAF = null;
+        });
+        this.isMoving = true;
+      }
+    }
+    _handleDragMove(e) {
+      if (this.isPotentialDrag) {
+        this._cleanupDragState();
+        return;
+      }
+      if (!this.isDragging || !this.draggedItem) return;
+      this._moveGhost(e);
+      this._findAndHighlightTarget(e);
+      this._triggerEvent("dragMove", { item: this.draggedItem, event: e });
+    }
+    _handleDragEnd(e) {
+      if (this.dragRAF) {
+        cancelAnimationFrame(this.dragRAF);
+        this.dragRAF = null;
+      }
+      if (this.isDragging && this.draggedItem && this.targetItem && this.targetItem !== this.draggedItem) {
+        this._sortItems(this.draggedItem, this.targetItem);
+      }
+      const draggedItem = this.draggedItem;
+      const wasDragging = this.isDragging;
+      this._cleanupDragState();
+      if (wasDragging && draggedItem) {
+        this._triggerEvent("dragEnd", { item: draggedItem, event: e });
+      }
+    }
+    _cleanupDragState() {
+      if (this.longPressTimeout) {
+        clearTimeout(this.longPressTimeout);
+        this.longPressTimeout = null;
+      }
+      if (this.ghostElement) this.ghostElement.remove();
+      if (this.draggedItem) {
+        this.draggedItem.style.willChange = "initial";
+        this.draggedItem.classList.remove(this.options.classNames.drag);
+        this.draggedItem.classList.remove(this.options.classNames.hidden);
+      }
+      if (this.targetItem) {
+        this.targetItem.style.willChange = "initial";
+        this.targetItem.classList.remove(this.options.classNames.placeholder);
+      }
+      this.isPotentialDrag = false;
+      this.isDragging = false;
+      this.isMoving = false;
+      this.draggedItem = null;
+      this.targetItem = null;
+      this.ghostElement = null;
+      this.startEvent = null;
+      this.itemRects.clear();
+      window.removeEventListener("pointermove", this.boundThrottledDragMove);
+      window.removeEventListener("pointerup", this.boundHandleDragEnd);
+      window.removeEventListener("pointercancel", this.boundHandleDragEnd);
+    }
+    _createGhost(e) {
+      if (!this.draggedItem) return;
+      const coords = this._getEventCoords(e);
+      const rect = this.draggedItem.getBoundingClientRect();
+      this.ghostElement = this.draggedItem.cloneNode(true);
+      this.ghostElement.classList.add(this.options.classNames.drag, this.options.classNames.ghost);
+      this.draggedItem.classList.add(this.options.classNames.drag);
+      this.ghostElement.classList.remove(this.options.classNames.hidden);
+      Object.assign(this.ghostElement.style, {
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+        top: `${rect.top}px`,
+        left: `${rect.left}px`
+      });
+      this.ghostOffset = { x: coords.clientX - rect.left, y: coords.clientY - rect.top };
+      document.body.appendChild(this.ghostElement);
+      this._moveGhost(e);
+    }
+    _moveGhost(e) {
+      if (!this.ghostElement) return;
+      const coords = this._getEventCoords(e);
+      this.ghostElement.style.left = `${coords.clientX - this.ghostOffset.x}px`;
+      this.ghostElement.style.top = `${coords.clientY - this.ghostOffset.y}px`;
+    }
+    _findAndHighlightTarget(e) {
+      if (this.targetItem) {
+        this.targetItem.style.willChange = "initial";
+        this.targetItem.classList.remove(this.options.classNames.placeholder);
+        this.targetItem = null;
+      }
+      const { clientX, clientY } = this._getEventCoords(e);
+      let newTarget = null;
+      for (const [element, rect] of this.itemRects.entries()) {
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          newTarget = element;
+          break;
+        }
+      }
+      if (newTarget) {
+        this.targetItem = newTarget;
+        this.targetItem.style.willChange = "transform";
+        this.targetItem.classList.add(this.options.classNames.placeholder);
+      }
+    }
+    _sortItems(fromEl, toEl) {
+      const oldIndex = this.itemsData.findIndex((d) => d.element === fromEl);
+      const newIndex = this.itemsData.findIndex((d) => d.element === toEl);
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+      this.swap(oldIndex, newIndex);
+      this._triggerEvent("sort", { oldIndex, newIndex, items: this.itemsData });
+    }
+    _triggerEvent(event, data) {
+      const listener = this.eventListeners[event];
+      if (typeof listener === "function") listener(data);
+    }
+    on(event, callback) {
+      if (typeof callback === "function") this.eventListeners[event] = callback;
+      return this;
+    }
+    off(event) {
+      this.eventListeners[event] = void 0;
+      return this;
+    }
+    layout(duration) {
+      this._triggerEvent("layoutStart", void 0);
+      const animDuration = typeof duration === "number" ? duration : this.options.layoutDuration;
+      this._setCSSVar("--layout-duration", `${animDuration}ms`);
+      const items = this.itemsData.map((d) => d.element);
+      const firstRects = items.map((el) => el.getBoundingClientRect());
+      this.animatingElements.clear();
+      this.layoutAnimationCounter = 0;
+      this.itemsData.forEach((itemData, index) => {
+        const expected = this.container.children[index];
+        if (expected !== itemData.element) {
+          this.container.insertBefore(itemData.element, expected || null);
+        }
+      });
+      requestAnimationFrame(() => {
+        const elementsToAnimate = [];
+        items.forEach((el, idx) => {
+          el.style.willChange = "transform";
+          const first = firstRects[idx];
+          const last = el.getBoundingClientRect();
+          const dx = first.left - last.left;
+          const dy = first.top - last.top;
+          if (dx || dy) {
+            elementsToAnimate.push(el);
+            el.classList.remove("animating");
+            el.style.transform = `translate(${dx}px, ${dy}px)`;
+          } else {
+            el.style.transform = "translate(0, 0)";
+          }
+        });
+        if (elementsToAnimate.length === 0) {
+          this._triggerEvent("layoutEnd", void 0);
+          return;
+        }
+        this.layoutAnimationCounter = elementsToAnimate.length;
+        requestAnimationFrame(() => {
+          elementsToAnimate.forEach((el) => {
+            this.animatingElements.add(el);
+            el.classList.add("animating");
+            el.style.transform = "translate(0, 0)";
+            const cleanup = () => {
+              el.style.willChange = "initial";
+              el.classList.remove("animating");
+              this.animatingElements.delete(el);
+              el.removeEventListener("transitionend", cleanup);
+              this.layoutAnimationCounter--;
+              if (this.layoutAnimationCounter <= 0) {
+                this._triggerEvent("layoutEnd", void 0);
+              }
+            };
+            el.addEventListener("transitionend", cleanup, { once: true });
+          });
+        });
+      });
+    }
+    add(element, index) {
+      element.classList.add(this.options.classNames.item);
+      let newItem;
+      if (index != null && index >= 0 && index < this.itemsData.length) {
+        this.itemsData.splice(index, 0, { index, element });
+        this.container.insertBefore(element, this.container.children[index]);
+        for (let i = index; i < this.itemsData.length; i++) {
+          this.itemsData[i].index = i;
+        }
+        newItem = this.itemsData[index];
+      } else {
+        const newIndex = this.itemsData.length;
+        newItem = { index: newIndex, element };
+        this.itemsData.push(newItem);
+        this.container.appendChild(element);
+      }
+      this._triggerEvent("add", { items: this.itemsData.map((d) => d.element) });
+      return newItem;
+    }
+    remove(target) {
+      let index;
+      if (target instanceof HTMLElement) {
+        index = this.itemsData.findIndex((d) => d.element === target);
+      } else {
+        index = target;
+      }
+      if (index < 0 || index >= this.itemsData.length) return null;
+      const [removed] = this.itemsData.splice(index, 1);
+      removed.element.classList.remove("animating");
+      this.animatingElements.delete(removed.element);
+      removed.element.remove();
+      for (let i = index; i < this.itemsData.length; i++) {
+        this.itemsData[i].index = i;
+      }
+      this._triggerEvent("remove", { items: this.itemsData.map((d) => d.element) });
+      return removed;
+    }
+    select(target) {
+      if (typeof target === "number") {
+        return this.itemsData[target] || null;
+      }
+      const found = this.itemsData.find((d) => d.element === target);
+      return found || null;
+    }
+    swap(fromIndex, toIndex) {
+      if (fromIndex < 0 || fromIndex >= this.itemsData.length || toIndex < 0 || toIndex >= this.itemsData.length || fromIndex === toIndex) return this;
+      [this.itemsData[fromIndex], this.itemsData[toIndex]] = [this.itemsData[toIndex], this.itemsData[fromIndex]];
+      this.itemsData[fromIndex].index = fromIndex;
+      this.itemsData[toIndex].index = toIndex;
+      this.layout(this.options.swapDuration);
+      this._triggerEvent("swap", {
+        fromIndex,
+        toIndex,
+        fromElement: this.itemsData[toIndex].element,
+        toElement: this.itemsData[fromIndex].element
+      });
+      return this;
+    }
+    refresh() {
+      this._initItems();
+      this.itemsData.forEach((item, idx) => {
+        const expected = this.container.children[idx];
+        if (expected !== item.element) {
+          this.container.insertBefore(item.element, expected || null);
+        }
+      });
+      this.layout(this.options.layoutDuration);
+    }
+    destroy() {
+      this.detach();
+      this.itemsData.forEach(({ element }) => element.classList.remove("animating"));
+      this.container.innerHTML = "";
+      this.itemsData = [];
+      this.eventListeners = {};
+      this.animatingElements.clear();
+      this.layoutAnimationCounter = 0;
+    }
+    detach() {
+      this.container.removeEventListener("pointerdown", this.boundHandleDragStart);
+      if (this.dragRAF) {
+        cancelAnimationFrame(this.dragRAF);
+        this.dragRAF = null;
+      }
+      this._cleanupDragState();
+    }
+    enable() {
+      if (this.options.dragEnabled) return;
+      this.options.dragEnabled = true;
+      this._bindEvents();
+    }
+    disable() {
+      if (!this.options.dragEnabled) return;
+      this.options.dragEnabled = false;
+      this.detach();
+    }
+  }
+  return Swappable;
+});

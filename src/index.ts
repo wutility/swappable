@@ -1,13 +1,34 @@
 import './index.css';
 import { SwappableEvents, SwappableItemData, SwappableOptions } from './types';
 
+const defaults: Required<SwappableOptions> = {
+  dragEnabled: true,
+  dragHandle: ".grid-item",
+  layoutDuration: 300,
+  swapDuration: 300,
+  layoutEasing: 'ease',
+  itemsPerRow: 4,
+  longPressDelay: 100,
+  classNames: {
+    item: 'grid-item',
+    drag: 'dragging',
+    placeholder: 'placeholder',
+    ghost: 'ghost',
+    hidden: 'hidden',
+  },
+};
+
 export default class Swappable {
   private container: HTMLElement;
   private options: Required<SwappableOptions>;
   private itemsData: SwappableItemData[] = [];
 
+  private isPotentialDrag = false;
   private isDragging = false;
   private isMoving = false;
+  private startEvent: PointerEvent | null = null;
+  private longPressTimeout: number | null = null;
+
   private draggedItem: HTMLElement | null = null;
   private targetItem: HTMLElement | null = null;
   private ghostElement: HTMLElement | null = null;
@@ -37,22 +58,6 @@ export default class Swappable {
       throw new Error('Swappable: Container not found.');
     }
 
-    const defaults: Required<SwappableOptions> = {
-      dragEnabled: true,
-      dragHandle: null,
-      layoutDuration: 300,
-      swapDuration: 300,
-      layoutEasing: 'ease',
-      itemsPerRow: 4,
-      classNames: {
-        item: 'grid-item',
-        drag: 'dragging',
-        placeholder: 'placeholder',
-        ghost: 'ghost',
-        hidden: 'hidden',
-      },
-    };
-
     this.options = { ...defaults, ...options };
     this.options.classNames = { ...defaults.classNames, ...options.classNames };
 
@@ -69,8 +74,6 @@ export default class Swappable {
   private _setCSSVar(name: string, value: string) {
     this.container.style.setProperty(name, value);
   }
-
-
 
   private _initItems(): void {
     this.itemsData = [];
@@ -89,11 +92,11 @@ export default class Swappable {
   }
 
   private _bindEvents(): void {
-    this.container.addEventListener('pointerdown', this.boundHandleDragStart, { passive: false });
+    this.container.addEventListener('pointerdown', this.boundHandleDragStart, { passive: true });
   }
 
   private _handleDragStart(e: PointerEvent): void {
-    if (e.button !== 0 || !this.options.dragEnabled) return;
+    if (e.button !== 0 || !this.options.dragEnabled || this.isDragging) return;
 
     const target = e.target as HTMLElement;
     const handle = this.options.dragHandle ? target.closest(this.options.dragHandle) : target;
@@ -101,35 +104,52 @@ export default class Swappable {
 
     const itemSelector = `.${this.options.classNames.item}`;
     const clickedItem = (handle as HTMLElement).closest(itemSelector) as HTMLElement | null;
-    if (clickedItem) {
-      e.preventDefault();
-      this.isDragging = true;
-      this.draggedItem = clickedItem;
-      this.draggedItem.style.willChange = 'transform';
-      this.draggedItem.classList.add(this.options.classNames.hidden!);
-      this.itemRects.clear();
-      this.itemsData.forEach(({ element }) => {
-        if (element !== this.draggedItem) {
-          this.itemRects.set(element, element.getBoundingClientRect());
-        }
-      });
 
-      this._createGhost(e);
+    if (clickedItem) {
+      this.isPotentialDrag = true;
+      this.startEvent = e;
+      this.draggedItem = clickedItem;
+
+      this.longPressTimeout = window.setTimeout(() => {
+        if (this.isPotentialDrag) {
+          this._initializeDrag(this.startEvent!);
+        }
+        this.longPressTimeout = null;
+      }, this.options.longPressDelay);
 
       window.addEventListener('pointermove', this.boundThrottledDragMove, { passive: false });
-      window.addEventListener('pointerup', this.boundHandleDragEnd);
-      window.addEventListener('pointercancel', this.boundHandleDragEnd);
-
-      this._triggerEvent('dragStart', { item: this.draggedItem, event: e });
+      window.addEventListener('pointerup', this.boundHandleDragEnd, { once: true });
+      window.addEventListener('pointercancel', this.boundHandleDragEnd, { once: true });
     }
   }
 
-  private _throttledDragMove(e: PointerEvent): void {
-    if (!this.isMoving) {
-      // Cancel previous RAF if it exists
-      if (this.dragRAF) {
-        cancelAnimationFrame(this.dragRAF);
+  private _initializeDrag(e: PointerEvent): void {
+    if (!this.draggedItem) return;
+
+    this.isDragging = true;
+    this.isPotentialDrag = false;
+
+    this.draggedItem.style.willChange = 'transform';
+    this.draggedItem.classList.add(this.options.classNames.hidden!);
+
+    this.itemRects.clear();
+    this.itemsData.forEach(({ element }) => {
+      if (element !== this.draggedItem) {
+        this.itemRects.set(element, element.getBoundingClientRect());
       }
+    });
+
+    this._createGhost(e);
+    this._triggerEvent('dragStart', { item: this.draggedItem, event: e });
+  }
+
+  private _throttledDragMove(e: PointerEvent): void {
+    if (this.isDragging) {
+      e.preventDefault();
+    }
+
+    if (!this.isMoving) {
+      if (this.dragRAF) cancelAnimationFrame(this.dragRAF);
 
       this.dragRAF = requestAnimationFrame(() => {
         this._handleDragMove(e);
@@ -141,23 +161,67 @@ export default class Swappable {
   }
 
   private _handleDragMove(e: PointerEvent): void {
+    if (this.isPotentialDrag) {
+      this._cleanupDragState();
+      return;
+    }
+
     if (!this.isDragging || !this.draggedItem) return;
-    e.preventDefault();
+
     this._moveGhost(e);
     this._findAndHighlightTarget(e);
     this._triggerEvent('dragMove', { item: this.draggedItem, event: e });
   }
 
   private _handleDragEnd(e: PointerEvent): void {
-    if (!this.isDragging || !this.draggedItem) return;
-
-    if (this.targetItem && this.targetItem !== this.draggedItem) {
-      // this.draggedItem.classList.add('hidden');
-      this._sortItems(this.draggedItem, this.targetItem);
-      // this.draggedItem.classList.remove('hidden');
+    if (this.dragRAF) {
+      cancelAnimationFrame(this.dragRAF);
+      this.dragRAF = null;
     }
 
-    this._finalizeDragEnd(e);
+    if (this.isDragging && this.draggedItem && this.targetItem && this.targetItem !== this.draggedItem) {
+      this._sortItems(this.draggedItem, this.targetItem);
+    }
+
+    const draggedItem = this.draggedItem;
+    const wasDragging = this.isDragging;
+    this._cleanupDragState();
+
+    if (wasDragging && draggedItem) {
+      this._triggerEvent('dragEnd', { item: draggedItem, event: e });
+    }
+  }
+
+  private _cleanupDragState(): void {
+    if (this.longPressTimeout) {
+      clearTimeout(this.longPressTimeout);
+      this.longPressTimeout = null;
+    }
+
+    if (this.ghostElement) this.ghostElement.remove();
+    if (this.draggedItem) {
+      this.draggedItem.style.willChange = 'initial';
+      this.draggedItem.classList.remove(this.options.classNames.drag!);
+      this.draggedItem.classList.remove(this.options.classNames.hidden!);
+    }
+    if (this.targetItem) {
+      this.targetItem.style.willChange = 'initial';
+      this.targetItem.classList.remove(this.options.classNames.placeholder!);
+    }
+
+    this.isPotentialDrag = false;
+    this.isDragging = false;
+    this.isMoving = false;
+
+    this.draggedItem = null;
+    this.targetItem = null;
+    this.ghostElement = null;
+    this.startEvent = null;
+    this.itemRects.clear();
+
+    window.removeEventListener('pointermove', this.boundThrottledDragMove);
+    window.removeEventListener('pointerup', this.boundHandleDragEnd);
+    window.removeEventListener('pointercancel', this.boundHandleDragEnd);
   }
 
   private _createGhost(e: PointerEvent): void {
@@ -169,7 +233,7 @@ export default class Swappable {
 
     this.ghostElement.classList.add(this.options.classNames.drag!, this.options.classNames.ghost!);
     this.draggedItem.classList.add(this.options.classNames.drag!);
-    this.ghostElement.classList.remove(this.options.classNames.hidden)
+    this.ghostElement.classList.remove(this.options.classNames.hidden!)
 
     Object.assign(this.ghostElement.style, {
       width: `${rect.width}px`,
@@ -221,51 +285,13 @@ export default class Swappable {
   }
 
   private _sortItems(fromEl: HTMLElement, toEl: HTMLElement): void {
-    const fromIndex = this.itemsData.findIndex(d => d.element === fromEl);
-    const toIndex = this.itemsData.findIndex(d => d.element === toEl);
+    const oldIndex = this.itemsData.findIndex(d => d.element === fromEl);
+    const newIndex = this.itemsData.findIndex(d => d.element === toEl);
 
-    if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) return;
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
 
-    this.swap(fromIndex, toIndex);
-    this._triggerEvent('sort', { fromIndex, toIndex, items: this.itemsData });
-  }
-
-  private _finalizeDragEnd(e: PointerEvent): void {
-    const draggedItem = this.draggedItem;
-    if (this.dragRAF) {
-      cancelAnimationFrame(this.dragRAF);
-      this.dragRAF = null;
-    }
-
-    this._cleanupDragState();
-    if (draggedItem) {
-      this._triggerEvent('dragEnd', { item: draggedItem, event: e });
-    }
-  }
-
-  private _cleanupDragState(): void {
-    if (this.ghostElement) this.ghostElement.remove();
-    if (this.draggedItem) {
-      this.draggedItem.style.willChange = 'initial';
-      this.draggedItem.classList.remove(this.options.classNames.drag!);
-      // Remove the 'hidden' class when drag ends
-      this.draggedItem.classList.remove(this.options.classNames.hidden!);
-    }
-    if (this.targetItem) {
-      this.targetItem.style.willChange = 'initial';
-      this.targetItem.classList.remove(this.options.classNames.placeholder!);
-    }
-
-    this.isDragging = false;
-    this.isMoving = false;
-    this.draggedItem = null;
-    this.targetItem = null;
-    this.ghostElement = null;
-    this.itemRects.clear();
-
-    window.removeEventListener('pointermove', this.boundThrottledDragMove);
-    window.removeEventListener('pointerup', this.boundHandleDragEnd);
-    window.removeEventListener('pointercancel', this.boundHandleDragEnd);
+    this.swap(oldIndex, newIndex);
+    this._triggerEvent('sort', { oldIndex, newIndex, items: this.itemsData });
   }
 
   private _triggerEvent(event: keyof SwappableEvents, data: any): void {
@@ -292,7 +318,6 @@ export default class Swappable {
     const items = this.itemsData.map(d => d.element);
     const firstRects = items.map(el => el.getBoundingClientRect());
 
-    // Clear any existing animations
     this.animatingElements.clear();
     this.layoutAnimationCounter = 0;
 
@@ -318,13 +343,11 @@ export default class Swappable {
           el.classList.remove('animating');
           el.style.transform = `translate(${dx}px, ${dy}px)`;
         } else {
-          // Remove any existing transform
           el.style.transform = 'translate(0, 0)';
         }
       });
 
       if (elementsToAnimate.length === 0) {
-        // No animations needed
         this._triggerEvent('layoutEnd', undefined);
         return;
       }
@@ -337,7 +360,6 @@ export default class Swappable {
           el.classList.add('animating');
           el.style.transform = 'translate(0, 0)';
 
-          // Cleanup on transition end
           const cleanup = () => {
             el.style.willChange = 'initial';
             el.classList.remove('animating');
@@ -349,7 +371,6 @@ export default class Swappable {
               this._triggerEvent('layoutEnd', undefined);
             }
           };
-
           el.addEventListener('transitionend', cleanup, { once: true });
         });
       });
@@ -391,11 +412,8 @@ export default class Swappable {
     if (index < 0 || index >= this.itemsData.length) return null;
 
     const [removed] = this.itemsData.splice(index, 1);
-
-    // Clean up any animations
     removed.element.classList.remove('animating');
     this.animatingElements.delete(removed.element);
-
     removed.element.remove();
 
     for (let i = index; i < this.itemsData.length; i++) {
@@ -428,7 +446,12 @@ export default class Swappable {
     this.itemsData[toIndex].index = toIndex;
 
     this.layout(this.options.swapDuration);
-    this._triggerEvent('swap', { fromIndex, toIndex, item: this.itemsData[toIndex].element });
+    this._triggerEvent('swap', {
+      fromIndex,
+      toIndex,
+      fromElement: this.itemsData[toIndex].element,
+      toElement: this.itemsData[fromIndex].element
+    });
     return this;
   }
 
@@ -445,11 +468,7 @@ export default class Swappable {
 
   public destroy(): void {
     this.detach();
-
-    this.itemsData.forEach(({ element }) => {
-      element.classList.remove('animating');
-    });
-
+    this.itemsData.forEach(({ element }) => element.classList.remove('animating'));
     this.container.innerHTML = '';
     this.itemsData = [];
     this.eventListeners = {};

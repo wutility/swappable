@@ -40,173 +40,153 @@ import swappable from "swappable";
 import "./node_modules/swappable/dist/swappable.css";
 ```
 
----
-
 ## Usage
 
-### HTML
+### Basic Setup
 
-Start with a container element and a set of children. The library will
-automatically detect and manage the child elements.
+Create a container with grid items and initialize Swappable:
 
 ```html
-<div id="my-grid">
+<div id="grid" class="swappable-grid">
   <div class="grid-item">Item 1</div>
   <div class="grid-item">Item 2</div>
   <div class="grid-item">Item 3</div>
   <div class="grid-item">Item 4</div>
-  <div class="grid-item">Item 5</div>
 </div>
+
+<script type="module">
+  import Swappable from 'swappable';
+
+  const grid = new Swappable('#grid', {
+    itemsPerRow: 4,
+    dragHandle: '.grid-item',
+    layoutDuration: 300,
+    swapDuration: 300,
+    longPressDelay: 100,
+  });
+</script>
 ```
 
-### JavaScript
+### Options
 
-Initialize a new `Swappable` instance by passing the container element or a CSS
-selector.
+Customize Swappable with the following options:
 
-```javascript
-import Swappable from "swappable-js";
+| Option            | Type              | Default             | Description                                      |
+|-------------------|-------------------|---------------------|--------------------------------------------------|
+| `dragEnabled`     | `boolean`         | `true`              | Enable or disable dragging.                      |
+| `dragHandle`      | `string \| null`  | `".grid-item"`      | Selector for drag handle (null for entire item).  |
+| `classNames`      | `ClassNames`      | See below           | Custom class names for grid items and states.    |
+| `layoutDuration`  | `number`          | `300`               | Duration of layout animations (ms).              |
+| `swapDuration`    | `number`          | `300`               | Duration of swap animations (ms).                |
+| `layoutEasing`    | `string`          | `"ease"`            | Easing function for animations.                  |
+| `itemsPerRow`     | `number`          | `4`                 | Number of items per row in the grid.             |
+| `longPressDelay`  | `number`          | `100`               | Delay (ms) for initiating drag on touch devices. |
 
-const swappable = new Swappable("#my-grid", {
-  itemsPerRow: 4,
-  dragHandle: ".grid-item",
-});
-```
+**Default `classNames`**:
 
----
-
-## API
-
-### `new Swappable(container, [options])`
-
-Creates a new `Swappable` instance.
-
-- `container`: An `HTMLElement` or CSS selector string for the grid container.
-- `options`: An optional object for customizing behavior.
-
-#### Options (`SwappableOptions`)
-
-| Option           | Type         | Default   | Description                                                         |
-| ---------------- | ------------ | --------- | ------------------------------------------------------------------- |
-| `dragEnabled`    | `boolean`    | `true`    | Enables or disables dragging of items.                              |
-| `dragHandle`     | `string`     | `null`    | `null`                                                              |
-| `classNames`     | `ClassNames` | See below | An object to override default CSS class names.                      |
-| `layoutDuration` | `number`     | `300`     | The duration in milliseconds for the layout animation.              |
-| `swapDuration`   | `number`     | `300`     | The duration in milliseconds for the swap animation.                |
-| `layoutEasing`   | `string`     | `'ease'`  | A CSS `transition-timing-function` for the layout animation.        |
-| `itemsPerRow`    | `number`     | `4`       | The number of items per row in the grid, used for CSS Grid styling. |
-
-#### Default Class Names
-
-```typescript
+```json
 {
-  item: 'grid-item',
-  drag: 'dragging',
-  placeholder: 'placeholder',
-  ghost: 'ghost',
-  hidden: 'hidden',
+  item: "grid-item",
+  drag: "dragging",
+  placeholder: "placeholder",
+  ghost: "ghost",
+  hidden: "hidden"
 }
 ```
 
----
+### Events
 
-## Methods
+Swappable supports the following events:
 
-### `on(event, callback)`
+| Event         | Data Type                                                                 | Description                                      |
+|---------------|---------------------------------------------------------------------------|--------------------------------------------------|
+| `add`         | `{ items: HTMLElement[] }`                                                | Fired when items are added.                      |
+| `remove`      | `{ items: HTMLElement[] }`                                                | Fired when items are removed.                    |
+| `dragStart`   | `{ item: HTMLElement, event: PointerEvent }`                              | Fired when dragging starts.                      |
+| `dragMove`    | `{ item: HTMLElement, event: PointerEvent }`                              | Fired during dragging.                           |
+| `swap`        | `{ fromIndex: number, toIndex: number, fromElement: HTMLElement, toElement: HTMLElement }` | Fired when items are swapped.                    |
+| `sort`        | `{ oldIndex: number, newIndex: number, items: SwappableItemData[] }`      | Fired after sorting items.                       |
+| `dragEnd`     | `{ item: HTMLElement, event: PointerEvent }`                              | Fired when dragging ends.                        |
+| `layoutStart` | `void`                                                                    | Fired before layout animation starts.            |
+| `layoutEnd`   | `void`                                                                    | Fired after layout animation ends.               |
 
-Attaches an event listener to the instance. Returns the `Swappable` instance.
-
-- `event`: A string representing the event name.
-- `callback`: The function to be executed when the event is triggered.
-
-### `off(event)`
-
-Removes an event listener. Returns the `Swappable` instance.
-
-- `event`: The name of the event to remove.
-
-### `swap(fromIndex, toIndex)`
-
-Swaps the items at two given indices programmatically. Returns the `Swappable`
-instance.
-
-- `fromIndex`: The index of the item to move.
-- `toIndex`: The index where the item should be moved.
-
-### `add(element, [index])`
-
-Adds a new `HTMLElement` to the grid at an optional index. Returns the new
-`SwappableItemData`.
-
-- `element`: The `HTMLElement` to add.
-- `index`: An optional number to specify the insertion position.
-
-### `remove(target)`
-
-Removes an item from the grid. Returns the removed `SwappableItemData` or
-`null`.
-
-- `target`: The `HTMLElement` or index of the item to remove.
-
-### `select(target)`
-
-Finds and returns the `SwappableItemData` for a given element or index.
-
-- `target`: The `HTMLElement` or index of the item to select.
-
-### `layout([duration])`
-
-Triggers a layout animation to re-position all items to their correct grid
-positions.
-
-- `duration`: An optional number to override the default `layoutDuration`.
-
-### `refresh()`
-
-Re-initializes the internal item data and triggers a layout. Useful if the
-container's children have changed without using `add()` or `remove()`.
-
-### `enable()`
-
-Enables dragging functionality.
-
-### `disable()`
-
-Disables dragging functionality.
-
-### `destroy()`
-
-Removes all event listeners, clears the container, and disposes of the instance.
-
----
-
-## Events
-
-You can listen for a variety of events using the `on()` method.
-
-| Event         | Data                                                                 | Description                                            |
-| ------------- | -------------------------------------------------------------------- | ------------------------------------------------------ |
-| `add`         | `{ items: HTMLElement[] }`                                           | Fired when an item is added.                           |
-| `remove`      | `{ items: HTMLElement[] }`                                           | Fired when an item is removed.                         |
-| `dragStart`   | `{ item: HTMLElement; event: PointerEvent }`                         | Fired when an item drag operation begins.              |
-| `dragMove`    | `{ item: HTMLElement; event: PointerEvent }`                         | Fired continuously while an item is being dragged.     |
-| `swap`        | `{ fromIndex: number; toIndex: number; item: HTMLElement }`          | Fired when two items are programmatically swapped.     |
-| `sort`        | `{ fromIndex: number; toIndex: number; items: SwappableItemData[] }` | Fired after a successful drag-and-drop sort operation. |
-| `dragEnd`     | `{ item: HTMLElement; event: PointerEvent }`                         | Fired when an item drag operation ends.                |
-| `layoutStart` | `undefined`                                                          | Fired at the beginning of a layout animation.          |
-| `layoutEnd`   | `undefined`                                                          | Fired at the end of a layout animation.                |
-
-### Example Event Usage
+Example of event handling:
 
 ```javascript
-swappable.on("sort", ({ fromIndex, toIndex, items }) => {
-  console.log(`Item moved from index ${fromIndex} to ${toIndex}.`);
-  // `items` is the new sorted array of item data.
+grid.on('dragStart', ({ item, event }) => {
+  console.log('Dragging started on', item);
 });
 
-swappable.on("dragEnd", ({ item }) => {
-  console.log("Dragging finished for item:", item);
+grid.on('swap', ({ fromIndex, toIndex }) => {
+  console.log(`Swapped item from ${fromIndex} to ${toIndex}`);
 });
+```
+
+### Methods
+
+| Method            | Parameters                          | Description                                      |
+|-------------------|-------------------------------------|--------------------------------------------------|
+| `on`              | `event: keyof SwappableEvents, callback` | Attach an event listener.                     |
+| `off`             | `event: keyof SwappableEvents`       | Remove an event listener.                       |
+| `layout`          | `duration?: number`                  | Recompute and animate layout.                    |
+| `add`             | `element: HTMLElement, index?: number` | Add a new item to the grid.                     |
+| `remove`          | `target: HTMLElement \| number`      | Remove an item by element or index.              |
+| `select`          | `target: HTMLElement \| number`      | Select an item by element or index.              |
+| `swap`            | `fromIndex: number, toIndex: number` | Swap two items by index.                         |
+| `refresh`         | None                                 | Refresh the grid layout.                         |
+| `destroy`         | None                                 | Destroy the instance and clean up.               |
+| `detach`          | None                                 | Detach event listeners.                          |
+| `enable`          | None                                 | Enable dragging.                                 |
+| `disable`         | None                                 | Disable dragging.                                |
+
+## Example
+
+A complete example with a 4x2 grid and event logging:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://unpkg.com/swappable/dist/index.css">
+  <style>
+    .grid-item {
+      background: #f0f0f0;
+      padding: 20px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="grid" class="swappable-grid">
+    <div class="grid-item">Item 1</div>
+    <div class="grid-item">Item 2</div>
+    <div class="grid-item">Item 3</div>
+    <div class="grid-item">Item 4</div>
+    <div class="grid-item">Item 5</div>
+    <div class="grid-item">Item 6</div>
+    <div class="grid-item">Item 7</div>
+    <div class="grid-item">Item 8</div>
+  </div>
+
+  <script type="module">
+    import Swappable from 'https://unpkg.com/swappable';
+
+    const grid = new Swappable('#grid', {
+      itemsPerRow: 4,
+      longPressDelay: 200,
+    });
+
+    grid.on('swap', ({ fromIndex, toIndex }) => {
+      console.log(`Swapped item from ${fromIndex} to ${toIndex}`);
+    });
+
+    grid.on('layoutEnd', () => {
+      console.log('Layout animation completed');
+    });
+  </script>
+</body>
+</html>
 ```
 
 ---
