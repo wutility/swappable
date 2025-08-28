@@ -21,6 +21,8 @@ export interface SwappableOptions {
   layoutEasing?: string;
   itemsPerRow?: number;
   longPressDelay?: number;
+  dragSlop?: number;
+  ghostFactory?: (draggedElement: HTMLElement) => HTMLElement;
 }
 
 export interface SwappableEvents {
@@ -28,8 +30,8 @@ export interface SwappableEvents {
   remove?: (data: { items: HTMLElement[] }) => void;
   dragStart?: (data: { item: HTMLElement; event: PointerEvent }) => void;
   dragMove?: (data: { item: HTMLElement; event: PointerEvent }) => void;
-  swap?: (data: { fromIndex: number; toIndex: number; item: HTMLElement }) => void;
-  sort?: (data: { fromIndex: number; toIndex: number; items: SwappableItemData[] }) => void;
+  swap?: (data: { fromIndex: number; toIndex: number; fromElement: HTMLElement, toElement: HTMLElement }) => void;
+  sort?: (data: { oldIndex: number; newIndex: number; items: SwappableItemData[] }) => void;
   dragEnd?: (data: { item: HTMLElement; event: PointerEvent }) => void;
   layoutStart?: () => void;
   layoutEnd?: () => void;

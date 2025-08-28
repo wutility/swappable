@@ -9,6 +9,8 @@ const defaults: Required<SwappableOptions> = {
   layoutEasing: 'ease',
   itemsPerRow: 4,
   longPressDelay: 100,
+  dragSlop: 5,
+  ghostFactory: undefined,
   classNames: {
     item: 'grid-item',
     drag: 'dragging',
@@ -35,59 +37,45 @@ export default class Swappable {
   private dragRAF: number | null = null;
 
   private eventListeners: Partial<SwappableEvents> = {};
-  private itemRects: Map<HTMLElement, DOMRect> = new Map();
   private ghostOffset = { x: 0, y: 0 };
-
-  private animatingElements = new Set<HTMLElement>();
-  private layoutAnimationCounter = 0;
+  private layoutId = 0;
 
   private boundHandleDragStart = this._handleDragStart.bind(this);
   private boundThrottledDragMove = this._throttledDragMove.bind(this);
   private boundHandleDragEnd = this._handleDragEnd.bind(this);
 
   constructor(containerOrSelector: string | HTMLElement, options: SwappableOptions = {}) {
-    if (typeof containerOrSelector === 'string') {
-      this.container = document.querySelector(containerOrSelector) as HTMLElement;
-    } else if (containerOrSelector instanceof HTMLElement) {
-      this.container = containerOrSelector;
-    } else {
-      throw new Error('Swappable: Invalid container provided. Must be a selector string or an HTMLElement.');
-    }
+    const el = containerOrSelector instanceof HTMLElement
+        ? containerOrSelector
+        : document.querySelector(containerOrSelector);
 
-    if (!this.container) {
+    if (!el) {
       throw new Error('Swappable: Container not found.');
     }
+    this.container = el as HTMLElement;
 
     this.options = { ...defaults, ...options };
     this.options.classNames = { ...defaults.classNames, ...options.classNames };
 
-    this._setCSSVar('--items-per-row', String(this.options.itemsPerRow));
-    this._setCSSVar('--layout-duration', `${this.options.layoutDuration}ms`);
-    this._setCSSVar('--layout-easing', this.options.layoutEasing);
+    this.container.style.setProperty('--items-per-row', String(this.options.itemsPerRow));
+    this.container.style.setProperty('--layout-duration', `${this.options.layoutDuration}ms`);
+    this.container.style.setProperty('--layout-easing', this.options.layoutEasing);
 
     this.container.classList.add('swappable-grid');
-
     this._initItems();
     this._bindEvents();
-  }
-
-  private _setCSSVar(name: string, value: string) {
-    this.container.style.setProperty(name, value);
   }
 
   private _initItems(): void {
     this.itemsData = [];
     const children = Array.from(this.container.children) as HTMLElement[];
-
     children.forEach((el, idx) => {
-      if (!el.classList.contains(this.options.classNames.item!)) {
-        el.classList.add(this.options.classNames.item!);
-      }
+      el.classList.add(this.options.classNames.item!);
       this.itemsData.push({ index: idx, element: el });
     });
   }
 
-  private _getEventCoords(e: PointerEvent): { clientX: number; clientY: number } {
+  private _getEventCoords(e: PointerEvent) {
     return { clientX: e.clientX, clientY: e.clientY };
   }
 
@@ -98,89 +86,73 @@ export default class Swappable {
   private _handleDragStart(e: PointerEvent): void {
     if (e.button !== 0 || !this.options.dragEnabled || this.isDragging) return;
 
-    const target = e.target as HTMLElement;
-    const handle = this.options.dragHandle ? target.closest(this.options.dragHandle) : target;
+    const handle = (e.target as HTMLElement).closest(this.options.dragHandle!);
     if (!handle) return;
 
-    const itemSelector = `.${this.options.classNames.item}`;
-    const clickedItem = (handle as HTMLElement).closest(itemSelector) as HTMLElement | null;
+    const clickedItem = handle.closest(`.${this.options.classNames.item!}`) as HTMLElement | null;
+    if (!clickedItem) return;
 
-    if (clickedItem) {
-      this.isPotentialDrag = true;
-      this.startEvent = e;
-      this.draggedItem = clickedItem;
+    this.isPotentialDrag = true;
+    this.startEvent = e;
+    this.draggedItem = clickedItem;
 
-      this.longPressTimeout = window.setTimeout(() => {
-        if (this.isPotentialDrag) {
-          this._initializeDrag(this.startEvent!);
-        }
-        this.longPressTimeout = null;
-      }, this.options.longPressDelay);
+    this.longPressTimeout = window.setTimeout(() => {
+      if (this.isPotentialDrag) this._initializeDrag(this.startEvent!);
+    }, this.options.longPressDelay);
 
-      window.addEventListener('pointermove', this.boundThrottledDragMove, { passive: false });
-      window.addEventListener('pointerup', this.boundHandleDragEnd, { once: true });
-      window.addEventListener('pointercancel', this.boundHandleDragEnd, { once: true });
-    }
+    window.addEventListener('pointermove', this.boundThrottledDragMove, { passive: false });
+    window.addEventListener('pointerup', this.boundHandleDragEnd, { once: true });
+    window.addEventListener('pointercancel', this.boundHandleDragEnd, { once: true });
   }
 
   private _initializeDrag(e: PointerEvent): void {
     if (!this.draggedItem) return;
-
     this.isDragging = true;
     this.isPotentialDrag = false;
-
     this.draggedItem.style.willChange = 'transform';
     this.draggedItem.classList.add(this.options.classNames.hidden!);
-
-    this.itemRects.clear();
-    this.itemsData.forEach(({ element }) => {
-      if (element !== this.draggedItem) {
-        this.itemRects.set(element, element.getBoundingClientRect());
-      }
-    });
-
     this._createGhost(e);
     this._triggerEvent('dragStart', { item: this.draggedItem, event: e });
   }
 
   private _throttledDragMove(e: PointerEvent): void {
-    if (this.isDragging) {
-      e.preventDefault();
+    if (this.isPotentialDrag) {
+      const start = this._getEventCoords(this.startEvent!);
+      const current = this._getEventCoords(e);
+      const distance = Math.hypot(current.clientX - start.clientX, current.clientY - start.clientY);
+      if (distance > this.options.dragSlop!) {
+        this._cleanupDragState();
+        return;
+      }
     }
 
-    if (!this.isMoving) {
-      if (this.dragRAF) cancelAnimationFrame(this.dragRAF);
-
+    if (this.isDragging) e.preventDefault();
+    if (!this.isMoving && this.isDragging) {
       this.dragRAF = requestAnimationFrame(() => {
         this._handleDragMove(e);
         this.isMoving = false;
-        this.dragRAF = null;
       });
       this.isMoving = true;
     }
   }
 
   private _handleDragMove(e: PointerEvent): void {
-    if (this.isPotentialDrag) {
-      this._cleanupDragState();
-      return;
-    }
-
-    if (!this.isDragging || !this.draggedItem) return;
-
+    if (!this.draggedItem) return;
     this._moveGhost(e);
     this._findAndHighlightTarget(e);
     this._triggerEvent('dragMove', { item: this.draggedItem, event: e });
   }
 
   private _handleDragEnd(e: PointerEvent): void {
-    if (this.dragRAF) {
-      cancelAnimationFrame(this.dragRAF);
-      this.dragRAF = null;
-    }
+    if (this.dragRAF) cancelAnimationFrame(this.dragRAF);
 
     if (this.isDragging && this.draggedItem && this.targetItem && this.targetItem !== this.draggedItem) {
-      this._sortItems(this.draggedItem, this.targetItem);
+      const fromIndex = this.itemsData.findIndex(d => d.element === this.draggedItem);
+      const toIndex = this.itemsData.findIndex(d => d.element === this.targetItem);
+      if (fromIndex !== -1 && toIndex !== -1) {
+        this.swap(fromIndex, toIndex);
+        this._triggerEvent('sort', { oldIndex: fromIndex, newIndex: toIndex, items: this.itemsData });
+      }
     }
 
     const draggedItem = this.draggedItem;
@@ -193,31 +165,18 @@ export default class Swappable {
   }
 
   private _cleanupDragState(): void {
-    if (this.longPressTimeout) {
-      clearTimeout(this.longPressTimeout);
-      this.longPressTimeout = null;
-    }
-
-    if (this.ghostElement) this.ghostElement.remove();
+    if (this.longPressTimeout) clearTimeout(this.longPressTimeout);
+    this.ghostElement?.remove();
     if (this.draggedItem) {
-      this.draggedItem.style.willChange = 'initial';
-      this.draggedItem.classList.remove(this.options.classNames.drag!);
-      this.draggedItem.classList.remove(this.options.classNames.hidden!);
+      this.draggedItem.style.willChange = '';
+      this.draggedItem.classList.remove(this.options.classNames.drag!, this.options.classNames.hidden!);
     }
     if (this.targetItem) {
-      this.targetItem.style.willChange = 'initial';
       this.targetItem.classList.remove(this.options.classNames.placeholder!);
     }
-
-    this.isPotentialDrag = false;
-    this.isDragging = false;
-    this.isMoving = false;
-
-    this.draggedItem = null;
-    this.targetItem = null;
-    this.ghostElement = null;
-    this.startEvent = null;
-    this.itemRects.clear();
+    
+    this.isPotentialDrag = this.isDragging = this.isMoving = false;
+    this.draggedItem = this.targetItem = this.ghostElement = this.startEvent = this.longPressTimeout = this.dragRAF = null;
 
     window.removeEventListener('pointermove', this.boundThrottledDragMove);
     window.removeEventListener('pointerup', this.boundHandleDragEnd);
@@ -226,77 +185,69 @@ export default class Swappable {
 
   private _createGhost(e: PointerEvent): void {
     if (!this.draggedItem) return;
-    const coords = this._getEventCoords(e);
-
+    
     const rect = this.draggedItem.getBoundingClientRect();
-    this.ghostElement = this.draggedItem.cloneNode(true) as HTMLElement;
-
-    this.ghostElement.classList.add(this.options.classNames.drag!, this.options.classNames.ghost!);
+    const coords = this._getEventCoords(e);
+    
+    this.ghostElement = this.options.ghostFactory
+      ? this.options.ghostFactory(this.draggedItem)
+      : (this.draggedItem.cloneNode(true) as HTMLElement);
+      
+    const style = this.ghostElement.style;
+    style.position = 'fixed';
+    style.boxSizing = 'border-box';
+    style.width = `${rect.width}px`;
+    style.height = `${rect.height}px`;
+    style.top = `${rect.top}px`;
+    style.left = `${rect.left}px`;
+    style.pointerEvents = 'none';
+    style.zIndex = '1000';
+    
+    this.ghostElement.classList.add(this.options.classNames.ghost!, this.options.classNames.drag!);
     this.draggedItem.classList.add(this.options.classNames.drag!);
-    this.ghostElement.classList.remove(this.options.classNames.hidden!)
-
-    Object.assign(this.ghostElement.style, {
-      width: `${rect.width}px`,
-      height: `${rect.height}px`,
-      top: `${rect.top}px`,
-      left: `${rect.left}px`,
-    });
+    this.ghostElement.classList.remove('hidden')
 
     this.ghostOffset = { x: coords.clientX - rect.left, y: coords.clientY - rect.top };
-
     document.body.appendChild(this.ghostElement);
-    this._moveGhost(e);
   }
 
   private _moveGhost(e: PointerEvent): void {
     if (!this.ghostElement) return;
     const coords = this._getEventCoords(e);
-    this.ghostElement.style.left = `${coords.clientX - this.ghostOffset.x}px`;
-    this.ghostElement.style.top = `${coords.clientY - this.ghostOffset.y}px`;
+    this.ghostElement.style.transform = `translate(${coords.clientX - this.ghostOffset.x - this.ghostElement.offsetLeft}px, ${coords.clientY - this.ghostOffset.y - this.ghostElement.offsetTop}px)`;
   }
 
   private _findAndHighlightTarget(e: PointerEvent): void {
     if (this.targetItem) {
-      this.targetItem.style.willChange = 'initial';
       this.targetItem.classList.remove(this.options.classNames.placeholder!);
-      this.targetItem = null;
     }
 
     const { clientX, clientY } = this._getEventCoords(e);
+    const containerRect = this.container.getBoundingClientRect();
+    const x = clientX - containerRect.left;
+    const y = clientY - containerRect.top;
+
     let newTarget: HTMLElement | null = null;
+    if (x >= 0 && x <= containerRect.width && y >= 0 && y <= containerRect.height) {
+      const firstItemRect = this.itemsData[0]?.element.getBoundingClientRect();
+      if (!firstItemRect || firstItemRect.height === 0) return;
 
-    for (const [element, rect] of this.itemRects.entries()) {
-      if (
-        clientX >= rect.left &&
-        clientX <= rect.right &&
-        clientY >= rect.top &&
-        clientY <= rect.bottom
-      ) {
-        newTarget = element;
-        break;
-      }
+      const col = Math.min(Math.floor(x / (containerRect.width / this.options.itemsPerRow!)), this.options.itemsPerRow! - 1);
+      const row = Math.floor(y / firstItemRect.height);
+      const targetIndex = Math.min(row * this.options.itemsPerRow! + col, this.itemsData.length - 1);
+      newTarget = this.itemsData[targetIndex]?.element;
     }
 
-    if (newTarget) {
+    if (newTarget && newTarget !== this.draggedItem) {
       this.targetItem = newTarget;
-      this.targetItem.style.willChange = 'transform';
       this.targetItem.classList.add(this.options.classNames.placeholder!);
+    } else {
+      this.targetItem = null;
     }
-  }
-
-  private _sortItems(fromEl: HTMLElement, toEl: HTMLElement): void {
-    const oldIndex = this.itemsData.findIndex(d => d.element === fromEl);
-    const newIndex = this.itemsData.findIndex(d => d.element === toEl);
-
-    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
-
-    this.swap(oldIndex, newIndex);
-    this._triggerEvent('sort', { oldIndex, newIndex, items: this.itemsData });
   }
 
   private _triggerEvent(event: keyof SwappableEvents, data: any): void {
-    const listener = this.eventListeners[event];
-    if (typeof listener === 'function') listener(data);
+    this.eventListeners[event]?.(data);
   }
 
   public on(event: keyof SwappableEvents, callback: SwappableEvents[typeof event]): this {
@@ -311,16 +262,12 @@ export default class Swappable {
 
   public layout(duration?: number): void {
     this._triggerEvent('layoutStart', undefined);
-
-    const animDuration = typeof duration === 'number' ? duration : this.options.layoutDuration;
-    this._setCSSVar('--layout-duration', `${animDuration}ms`);
+    const currentLayoutId = ++this.layoutId;
+    this.container.style.setProperty('--layout-duration', `${duration ?? this.options.layoutDuration}ms`);
 
     const items = this.itemsData.map(d => d.element);
     const firstRects = items.map(el => el.getBoundingClientRect());
-
-    this.animatingElements.clear();
-    this.layoutAnimationCounter = 0;
-
+    
     this.itemsData.forEach((itemData, index) => {
       const expected = this.container.children[index];
       if (expected !== itemData.element) {
@@ -329,22 +276,15 @@ export default class Swappable {
     });
 
     requestAnimationFrame(() => {
-      const elementsToAnimate: HTMLElement[] = [];
-
-      items.forEach((el, idx) => {
-        el.style.willChange = 'transform';
-        const first = firstRects[idx];
+      const elementsToAnimate = items.filter((el, idx) => {
         const last = el.getBoundingClientRect();
-        const dx = first.left - last.left;
-        const dy = first.top - last.top;
-
+        const dx = firstRects[idx].left - last.left;
+        const dy = firstRects[idx].top - last.top;
         if (dx || dy) {
-          elementsToAnimate.push(el);
-          el.classList.remove('animating');
           el.style.transform = `translate(${dx}px, ${dy}px)`;
-        } else {
-          el.style.transform = 'translate(0, 0)';
+          return true;
         }
+        return false;
       });
 
       if (elementsToAnimate.length === 0) {
@@ -352,107 +292,47 @@ export default class Swappable {
         return;
       }
 
-      this.layoutAnimationCounter = elementsToAnimate.length;
-
       requestAnimationFrame(() => {
-        elementsToAnimate.forEach((el) => {
-          this.animatingElements.add(el);
-          el.classList.add('animating');
-          el.style.transform = 'translate(0, 0)';
-
-          const cleanup = () => {
-            el.style.willChange = 'initial';
+        let animatedCount = 0;
+        elementsToAnimate.forEach(el => {
+          const onTransitionEnd = () => {
+            if (this.layoutId !== currentLayoutId) return;
+            el.style.willChange = '';
             el.classList.remove('animating');
-            this.animatingElements.delete(el);
-            el.removeEventListener('transitionend', cleanup);
-
-            this.layoutAnimationCounter--;
-            if (this.layoutAnimationCounter <= 0) {
+            el.removeEventListener('transitionend', onTransitionEnd);
+            if (++animatedCount === elementsToAnimate.length) {
               this._triggerEvent('layoutEnd', undefined);
             }
           };
-          el.addEventListener('transitionend', cleanup, { once: true });
+          el.addEventListener('transitionend', onTransitionEnd);
+          el.style.willChange = 'transform';
+          el.classList.add('animating');
+          el.style.transform = '';
         });
       });
     });
   }
-
-  public add(element: HTMLElement, index?: number): SwappableItemData {
-    element.classList.add(this.options.classNames.item!);
-
-    let newItem: SwappableItemData;
-
-    if (index != null && index >= 0 && index < this.itemsData.length) {
-      this.itemsData.splice(index, 0, { index, element });
-      this.container.insertBefore(element, this.container.children[index]);
-      for (let i = index; i < this.itemsData.length; i++) {
-        this.itemsData[i].index = i;
-      }
-      newItem = this.itemsData[index];
-    } else {
-      const newIndex = this.itemsData.length;
-      newItem = { index: newIndex, element };
-      this.itemsData.push(newItem);
-      this.container.appendChild(element);
-    }
-
-    this._triggerEvent('add', { items: this.itemsData.map(d => d.element) });
-    return newItem;
-  }
-
-  public remove(target: HTMLElement | number): SwappableItemData | null {
-    let index: number;
-
-    if (target instanceof HTMLElement) {
-      index = this.itemsData.findIndex(d => d.element === target);
-    } else {
-      index = target;
-    }
-
-    if (index < 0 || index >= this.itemsData.length) return null;
-
-    const [removed] = this.itemsData.splice(index, 1);
-    removed.element.classList.remove('animating');
-    this.animatingElements.delete(removed.element);
-    removed.element.remove();
-
-    for (let i = index; i < this.itemsData.length; i++) {
-      this.itemsData[i].index = i;
-    }
-
-    this._triggerEvent('remove', { items: this.itemsData.map(d => d.element) });
-    return removed;
-  }
-
-  public select(target: number | HTMLElement): SwappableItemData | null {
-    if (typeof target === 'number') {
-      return this.itemsData[target] || null;
-    }
-    const found = this.itemsData.find(d => d.element === target);
-    return found || null;
-  }
-
+  
   public swap(fromIndex: number, toIndex: number): this {
-    if (
-      fromIndex < 0 || fromIndex >= this.itemsData.length ||
-      toIndex < 0 || toIndex >= this.itemsData.length ||
-      fromIndex === toIndex
-    ) return this;
-
-    [this.itemsData[fromIndex], this.itemsData[toIndex]] =
-      [this.itemsData[toIndex], this.itemsData[fromIndex]];
-
+    if (fromIndex === toIndex || Math.min(fromIndex, toIndex) < 0 || Math.max(fromIndex, toIndex) >= this.itemsData.length) return this;
+    [this.itemsData[fromIndex], this.itemsData[toIndex]] = [this.itemsData[toIndex], this.itemsData[fromIndex]];
     this.itemsData[fromIndex].index = fromIndex;
     this.itemsData[toIndex].index = toIndex;
-
     this.layout(this.options.swapDuration);
-    this._triggerEvent('swap', {
-      fromIndex,
-      toIndex,
-      fromElement: this.itemsData[toIndex].element,
-      toElement: this.itemsData[fromIndex].element
-    });
+    this._triggerEvent('swap', { fromIndex, toIndex, fromElement: this.itemsData[toIndex].element, toElement: this.itemsData[fromIndex].element });
     return this;
+  }
+
+  public destroy(): void {
+    this.detach();
+    this.container.innerHTML = '';
+    this.itemsData = [];
+    this.eventListeners = {};
+  }
+
+  public detach(): void {
+    this.container.removeEventListener('pointerdown', this.boundHandleDragStart);
+    this._cleanupDragState();
   }
 
   public refresh(): void {
@@ -463,37 +343,46 @@ export default class Swappable {
         this.container.insertBefore(item.element, expected || null);
       }
     });
-    this.layout(this.options.layoutDuration);
+    this.layout();
   }
 
-  public destroy(): void {
-    this.detach();
-    this.itemsData.forEach(({ element }) => element.classList.remove('animating'));
-    this.container.innerHTML = '';
-    this.itemsData = [];
-    this.eventListeners = {};
-    this.animatingElements.clear();
-    this.layoutAnimationCounter = 0;
-  }
-
-  public detach(): void {
-    this.container.removeEventListener('pointerdown', this.boundHandleDragStart);
-    if (this.dragRAF) {
-      cancelAnimationFrame(this.dragRAF);
-      this.dragRAF = null;
+  public select(target: number | HTMLElement): SwappableItemData | null {
+    if (typeof target === 'number') {
+      return this.itemsData[target] || null;
     }
-    this._cleanupDragState();
+    return this.itemsData.find(d => d.element === target) || null;
   }
 
-  public enable(): void {
-    if (this.options.dragEnabled) return;
-    this.options.dragEnabled = true;
-    this._bindEvents();
+  public add(element: HTMLElement, index?: number): SwappableItemData {
+    element.classList.add(this.options.classNames.item!);
+    let newItem: SwappableItemData;
+    if (index != null && index >= 0 && index < this.itemsData.length) {
+      this.itemsData.splice(index, 0, { index, element });
+      this.container.insertBefore(element, this.container.children[index]);
+      for (let i = index; i < this.itemsData.length; i++) { this.itemsData[i].index = i; }
+      newItem = this.itemsData[index];
+    } else {
+      const newIndex = this.itemsData.length;
+      newItem = { index: newIndex, element };
+      this.itemsData.push(newItem);
+      this.container.appendChild(element);
+    }
+    this._triggerEvent('add', { items: this.itemsData.map(d => d.element) });
+    return newItem;
   }
-
-  public disable(): void {
-    if (!this.options.dragEnabled) return;
-    this.options.dragEnabled = false;
-    this.detach();
+  
+  public remove(target: HTMLElement | number): SwappableItemData | null {
+    let index: number;
+    if (target instanceof HTMLElement) {
+      index = this.itemsData.findIndex(d => d.element === target);
+    } else {
+      index = target;
+    }
+    if (index < 0 || index >= this.itemsData.length) return null;
+    const [removed] = this.itemsData.splice(index, 1);
+    removed.element.remove();
+    for (let i = index; i < this.itemsData.length; i++) { this.itemsData[i].index = i; }
+    this._triggerEvent('remove', { items: this.itemsData.map(d => d.element) });
+    return removed;
   }
 }

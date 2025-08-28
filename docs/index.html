@@ -15,7 +15,7 @@
 <body>
     <div id="controls">
         <button id="add-item-btn">Add Item</button>
-        <button id="remove-item-btn">Remove Item #1</button>
+        <button id="remove-item-btn">Remove Item #0 index</button>
         <button id="swap-item-btn">Swap Item #1 with #2</button>
         <button id="enable-item-btn">enable</button>
         <button id="disable-item-btn">disable</button>
@@ -27,70 +27,11 @@
         <div class="grid-item">
             <img width="50" height="50"
                 src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
-            1Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum
-            has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of
-            type and scrambled it to make a type specimen book.
-        </div>
-        <div class="grid-item">
-            <img width="50" height="50"
-                src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
-            2It has survived not only five centuries, but also the leap into electronic typesetting,
-            remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets
-            containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker
-            including versions of Lorem Ipsum.
-        </div>
-        <div class="grid-item">
-            <img width="50" height="50"
-                src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
-            3It is a long established fact that a reader will be distracted by the readable content
-            of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal
-            distribution
-        </div>
-        <div class="grid-item">
-            <img width="50" height="50"
-                src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
-            4It is a long established fact that a reader will be distracted by the readable content
-            of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal
-            distribution
-        </div>
-        <div class="grid-item">
-            <img width="50" height="50"
-                src="https://smaller-pictures.appspot.com/images/dreamstime_xxl_65780868_small.jpg" alt="">
-            5It is a long established fact that a reader will be distracted by the readable content
-            of a page when looking at its layout. The point of using Lorem Ipsum is that it has a more-or-less normal
-            distribution
+            1Lorem Ipsum is simply dummy text of the printing and typesetting industry.
         </div>
     </div>
 
-    <script>
-        const grid = new Swappable('#my-grid', { itemsPerRow: 4, longPressDelay: 100 });
-
-        // Control buttons
-        const addItemBtn = document.getElementById('add-item-btn');
-        addItemBtn.addEventListener('click', () => {
-            const div = document.createElement('div');
-            div.classList.add('grid-item')
-            div.innerHTML = `default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).`
-            grid.add(div);
-            grid.refresh();
-        });
-
-        document.getElementById('remove-item-btn').addEventListener('click', () => {
-            grid.remove(1);
-        });
-
-        document.getElementById('swap-item-btn').addEventListener('click', () => {
-            grid.swap(1, 2);
-        });
-
-        document.getElementById('disable-item-btn').addEventListener('click', () => {
-            grid.disable();
-        });
-
-        document.getElementById('enable-item-btn').addEventListener('click', () => {
-            grid.enable();
-        });
-    </script>
+    <script src="app.js"></script>
 
 </body>
 
