@@ -385,4 +385,16 @@ export default class Swappable {
     this._triggerEvent('remove', { items: this.itemsData.map(d => d.element) });
     return removed;
   }
+
+  public enable(): void {
+    if (this.options.dragEnabled) return;
+    this.options.dragEnabled = true;
+    this._bindEvents();
+  }
+
+  public disable(): void {
+    if (!this.options.dragEnabled) return;
+    this.options.dragEnabled = false;
+    this.detach();
+  }
 }

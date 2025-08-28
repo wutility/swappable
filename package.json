@@ -1,7 +1,7 @@
 {
   "name": "swappable",
   "description": "Lightweight, high-performance drag and drop grid library with smooth animations and touch support. Create interactive, swappable grids with minimal overhead and maximum responsiveness.",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
