@@ -1,17 +1,38 @@
-const grid = new Swappable('#my-grid', { itemsPerRow: 4, layoutDuration: 300, swapDuration: 300, longPressDelay: 100 });
+const grid = new Swappable('#my-grid', {
+  itemsPerRow: 4,
+  layoutDuration: 300,
+  swapDuration: 300,
+  longPressDelay: 100
+});
 
-// Control buttons
+const grid2 = new Swappable('#my-grid-2', {
+  itemsPerRow: 1,
+});
+
+// add new item
 const addItemBtn = document.getElementById('add-item-btn');
 addItemBtn.addEventListener('click', () => {
+  const item = fruits[0];
+  
   const div = document.createElement('div');
+  const img = document.createElement('img');
+  const desc = document.createElement('p')
   div.classList.add('grid-item')
-  div.innerHTML = `default model text, and a search for 'lorem ipsum' will uncover many web sites still in their infancy. Various versions have evolved over the years, sometimes by accident, sometimes on purpose (injected humour and the like).`
+  desc.textContent = item.description
+  img.src = item.img
+  img.width = 50
+  img.height = 50
+
+  div.appendChild(img)
+  div.appendChild(desc);
+
+
   grid.add(div);
   grid.refresh();
 });
 
 document.getElementById('remove-item-btn').addEventListener('click', () => {
-  grid.remove(0);
+  grid.remove(grid.getSize() - 1);
 });
 
 document.getElementById('swap-item-btn').addEventListener('click', () => {
@@ -79,8 +100,6 @@ const fruits = [
   }
 ];
 
-
-
 const parent = document.getElementById('my-grid');
 fruits.forEach((item, i) => {
   const div = document.createElement('div');
@@ -95,6 +114,6 @@ fruits.forEach((item, i) => {
   div.appendChild(img)
   div.appendChild(desc);
   parent.appendChild(div);
-  
-  if (i >= fruits.length-1) grid.refresh();
+
+  if (i >= fruits.length - 1) grid.refresh();
 });

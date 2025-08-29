@@ -16,10 +16,6 @@
   contain: layout style;
 }
 
-.grid-item.animating {
-  transition: transform var(--layout-duration) var(--layout-easing);
-}
-
 .ghost {
   transition: none !important;
   will-change: transform;
@@ -30,7 +26,8 @@
 }
 
 .grid-item.placeholder {
-  opacity: 0.5;
+  transform: scale(0.95);
+  transition: transform 150ms ease-in-out;
 }
 
 .hidden {

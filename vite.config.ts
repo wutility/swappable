@@ -5,7 +5,6 @@ import path from 'node:path';
 export default defineConfig({
   plugins: [
     dts({
-      compilerOptions: { removeComments: true },
       insertTypesEntry: true,
       tsconfigPath: './tsconfig.build.json'
     }),
