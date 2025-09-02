@@ -1,0 +1,10 @@
+{
+  "name": "swappable",
+  "version": "1.1.1",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "publish": {
+    "include": ["./*.md", "./dist/index.js", "./dist/types/index.d.ts"]
+  }
+}

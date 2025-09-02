@@ -16,7 +16,7 @@ it offers smooth animations and a simple API for common use cases.
   footprint.
 - **Customizable**: Easily configure class names, animation durations, and drag
   behavior.\
-  [codepen](https://codepen.io/haikelfazzani-the-bold/pen/GgpMpzE)\
+  [codepen](https://codepen.io/haikelfazzani/pen/GgpMpzE)\
   [demo](https://wutility.github.io/swappable)
 
 <hr />
@@ -147,7 +147,7 @@ A complete example with a 4x2 grid and event logging:
 <!DOCTYPE html>
 <html>
 <head>
-  <link rel="stylesheet" href="https://unpkg.com/swappable/dist/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swappable/dist/swappable.css">
   <style>
     .grid-item {
       background: #f0f0f0;
@@ -170,7 +170,7 @@ A complete example with a 4x2 grid and event logging:
   </div>
 
   <script type="module">
-    import Swappable from 'https://unpkg.com/swappable';
+    import Swappable from 'https://cdn.jsdelivr.net/npm/swappable/dist/index.umd.js';
 
     const grid = new Swappable('#grid', {
       itemsPerRow: 4,

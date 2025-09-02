@@ -156,12 +156,12 @@ export default class Swappable {
       this.draggedItem.classList.remove(this.options.classNames.drag!, this.options.classNames.hidden!);
     }
     if (this.targetItem) this.targetItem.classList.remove(this.options.classNames.placeholder!);
-    
+
     this.isPotentialDrag = this.isDragging = false;
     this.draggedItem = this.targetItem = this.ghostElement = this.startEvent = this.longPressTimeout = this.dragRAF = null;
     this.containerRectCache = null;
     this.itemHeightCache = 0;
-    
+
     window.removeEventListener('pointermove', this._throttledDragMove);
     window.removeEventListener('pointerup', this._handleDragEnd);
     window.removeEventListener('pointercancel', this._handleDragEnd);
@@ -174,7 +174,7 @@ export default class Swappable {
     this.ghostElement = this.options.ghostFactory
       ? this.options.ghostFactory(this.draggedItem)
       : (this.draggedItem.cloneNode(true) as HTMLElement);
-    
+
     const style = this.ghostElement.style;
     style.position = 'fixed';
     style.boxSizing = 'border-box';
@@ -184,7 +184,7 @@ export default class Swappable {
     style.left = `${rect.left}px`;
     style.pointerEvents = 'none';
     style.zIndex = '1000';
-    
+
     this.ghostElement.classList.add(this.options.classNames.ghost!, this.options.classNames.drag!);
     this.ghostElement.classList.remove('hidden');
     this.ghostOffset = { x: coords.clientX - rect.left, y: coords.clientY - rect.top };
@@ -199,23 +199,23 @@ export default class Swappable {
 
   private _findAndHighlightTarget = (e: PointerEvent): void => {
     if (this.targetItem) this.targetItem.classList.remove(this.options.classNames.placeholder!);
-    
+
     const { clientX, clientY } = this._getEventCoords(e);
     const containerRect = this.containerRectCache;
     const itemHeight = this.itemHeightCache;
     if (!containerRect || itemHeight === 0) return;
-    
+
     const x = clientX - containerRect.left;
     const y = clientY - containerRect.top;
     let newTarget: HTMLElement | null = null;
-    
+
     if (x >= 0 && x <= containerRect.width && y >= 0 && y <= containerRect.height) {
       const col = Math.min(Math.floor(x / (containerRect.width / this.options.itemsPerRow!)), this.options.itemsPerRow! - 1);
       const row = Math.floor(y / itemHeight);
       const targetIndex = Math.min(row * this.options.itemsPerRow! + col, this.itemsData.length - 1);
       newTarget = this.itemsData[targetIndex]?.element;
     }
-    
+
     if (newTarget && newTarget !== this.draggedItem) {
       this.targetItem = newTarget;
       this.targetItem.classList.add(this.options.classNames.placeholder!);
@@ -243,14 +243,14 @@ export default class Swappable {
     const effectiveDuration = duration ?? this.options.layoutDuration;
     const items = this.itemsData.map(d => d.element);
     const firstRects = items.map(el => el.getBoundingClientRect());
-    
+
     this.itemsData.forEach((itemData, index) => {
       const expected = this.container.children[index];
       if (expected !== itemData.element) this.container.insertBefore(itemData.element, expected || null);
     });
-    
+
     const lastRects = items.map(el => el.getBoundingClientRect());
-    
+
     requestAnimationFrame(() => {
       let animatedCount = 0;
       const elementsToAnimate: HTMLElement[] = [];
@@ -269,9 +269,13 @@ export default class Swappable {
       }
       requestAnimationFrame(() => {
         elementsToAnimate.forEach(el => {
-          const onTransitionEnd = () => {
+          const onTransitionEnd = (event: TransitionEvent) => {
+            if (event.propertyName !== 'transform') return;
+
+            const el = event.target as HTMLElement;
             el.style.willChange = '';
             el.style.transition = '';
+
             el.removeEventListener('transitionend', onTransitionEnd);
             if (++animatedCount === elementsToAnimate.length) {
               this._triggerEvent('layoutEnd', undefined);
@@ -282,6 +286,17 @@ export default class Swappable {
           el.style.transition = `transform ${effectiveDuration}ms ${this.options.layoutEasing}`;
           el.style.transform = '';
         });
+
+        const fallbackTimeout = setTimeout(() => {
+          // cleanup all elements here
+          this._triggerEvent('layoutEnd', undefined);
+        }, effectiveDuration + 50);
+
+        if (++animatedCount === elementsToAnimate.length) {
+          clearTimeout(fallbackTimeout);
+          this._triggerEvent('layoutEnd', undefined);
+        }
+
       });
     });
   }
@@ -298,7 +313,7 @@ export default class Swappable {
   public _internalAdd = (element: HTMLElement, index?: number): SwappableItemData => {
     element.classList.add(this.options.classNames.item!);
     const effectiveIndex = index ?? this.itemsData.length;
-    
+
     const newItem: SwappableItemData = { index: effectiveIndex, element };
     this.itemsData.splice(effectiveIndex, 0, newItem);
     this.container.insertBefore(element, this.container.children[effectiveIndex] || null);
@@ -306,7 +321,7 @@ export default class Swappable {
     for (let i = effectiveIndex; i < this.itemsData.length; i++) {
       this.itemsData[i].index = i;
     }
-    
+
     this._triggerEvent('add', { items: this.itemsData.map(d => d.element) });
     return newItem;
   }
@@ -314,14 +329,14 @@ export default class Swappable {
   public _internalRemove = (target: HTMLElement | number): SwappableItemData | null => {
     const index = target instanceof HTMLElement ? this.itemsData.findIndex(d => d.element === target) : target;
     if (index < 0 || index >= this.itemsData.length) return null;
-    
+
     const [removed] = this.itemsData.splice(index, 1);
     removed.element.remove();
-    
+
     for (let i = index; i < this.itemsData.length; i++) {
       this.itemsData[i].index = i;
     }
-    
+
     this._triggerEvent('remove', { items: this.itemsData.map(d => d.element) });
     return removed;
   }
